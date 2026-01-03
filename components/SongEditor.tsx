@@ -40,10 +40,11 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
 
   const handleArtistChange = (value: string) => {
     setArtist(value);
-    if (value.trim().length > 0) {
+    const trimmedValue = value.trim();
+    if (trimmedValue.length > 0) {
       const filtered = existingArtists.filter(a => 
-        a.toLowerCase().startsWith(value.toLowerCase()) && 
-        a.toLowerCase() !== value.toLowerCase()
+        a.toLowerCase().startsWith(trimmedValue.toLowerCase()) && 
+        a.toLowerCase() !== trimmedValue.toLowerCase()
       );
       setSuggestions(filtered.slice(0, 5)); // Показываем топ-5
       setShowSuggestions(filtered.length > 0);
@@ -55,6 +56,7 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
 
   const selectSuggestion = (suggestion: string) => {
     setArtist(suggestion);
+    setSuggestions([]);
     setShowSuggestions(false);
   };
 
@@ -119,12 +121,17 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
           
           {/* Suggestions Dropdown */}
           {showSuggestions && (
-            <div className="absolute left-0 right-0 bg-zinc-900 border-b border-white/10 z-[160] shadow-2xl animate-in fade-in slide-in-from-top-1">
+            <div className="absolute left-0 right-0 bg-zinc-900 border-b border-white/10 z-[160] shadow-2xl animate-in fade-in slide-in-from-top-1 overflow-hidden">
               {suggestions.map((s, idx) => (
                 <button
                   key={idx}
-                  onClick={() => selectSuggestion(s)}
-                  className="w-full text-left px-6 py-4 text-white hover:bg-zinc-800 border-b border-white/5 active:bg-blue-600 transition-colors flex items-center justify-between"
+                  type="button"
+                  // Используем onMouseDown вместо onClick для мгновенного срабатывания перед потерей фокуса
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Предотвращаем потерю фокуса инпутом
+                    selectSuggestion(s);
+                  }}
+                  className="w-full text-left px-6 py-4 text-white bg-zinc-900 hover:bg-zinc-800 border-b border-white/5 active:bg-blue-600 transition-colors flex items-center justify-between"
                 >
                   <span className="font-semibold">{s}</span>
                   <svg className="w-4 h-4 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
