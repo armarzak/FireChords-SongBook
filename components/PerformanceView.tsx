@@ -23,7 +23,10 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
   const preciseScrollTopRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
   
-  // Ref для скорости позволяет менять ее "на лету" без перезапуска цикла анимации
+  // Refs для pinch-to-zoom
+  const initialPinchDistanceRef = useRef<number | null>(null);
+  const initialFontSizeRef = useRef<number>(18);
+
   const scrollSpeedRef = useRef(scrollSpeed);
   useEffect(() => {
     scrollSpeedRef.current = scrollSpeed;
@@ -47,14 +50,13 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     const deltaTime = time - lastFrameTimeRef.current;
     lastFrameTimeRef.current = time;
 
-    // Расчет приращения на основе deltaTime и актуальной скорости из Ref
     const speedFactor = (scrollSpeedRef.current / 100) * 0.08; 
     const increment = speedFactor * deltaTime;
 
     preciseScrollTopRef.current += increment;
     containerRef.current.scrollTop = preciseScrollTopRef.current;
 
-    const isAtBottom = containerRef.current.scrollTop + containerRef.current.clientHeight >= containerRef.current.scrollHeight - 2;
+    const isAtBottom = containerRef.current.scrollTop + containerRef.current.clientHeight >= containerRef.current.scrollHeight - 5;
     
     if (isAtBottom) {
       setScrolling(false);
@@ -88,7 +90,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
   };
 
   const changeFontSize = (delta: number) => {
-    setFontSize(prev => Math.min(Math.max(prev + delta, 10), 40));
+    setFontSize(prev => Math.min(Math.max(prev + delta, 10), 80));
   };
 
   const getUniqueChords = () => {
@@ -120,9 +122,42 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     });
   };
 
+  const getDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      initialPinchDistanceRef.current = getDistance(e.touches);
+      initialFontSizeRef.current = fontSize;
+    }
+    // Остановка при нажатии убрана по просьбе пользователя
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && initialPinchDistanceRef.current !== null) {
+      const currentDistance = getDistance(e.touches);
+      const ratio = currentDistance / initialPinchDistanceRef.current;
+      const newSize = Math.round(initialFontSizeRef.current * ratio);
+      // Ограничиваем размер шрифта от 10 до 80
+      setFontSize(Math.min(Math.max(newSize, 10), 80));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    initialPinchDistanceRef.current = null;
+  };
+
   return (
-    <div className="fixed inset-0 bg-black z-[100] flex flex-col text-white">
-      {/* Header - теперь всегда виден */}
+    <div 
+      className="fixed inset-0 bg-black z-[100] flex flex-col text-white overscroll-none"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Header - Всегда виден */}
       <div className="pt-[env(safe-area-inset-top)] bg-zinc-900 border-b border-zinc-800 px-4 flex justify-between items-center h-20 shrink-0 z-[140]">
         <div className="flex items-center gap-1">
           <button onClick={onClose} className="text-zinc-400 active:text-white px-2 py-4 text-sm font-medium">Back</button>
@@ -153,24 +188,21 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         </button>
       </div>
 
+      {/* Контент песни */}
       <div 
         ref={containerRef}
         onClick={() => {
-          if (scrolling) setScrolling(false);
+          // Закрываем панель аккордов при тапе на текст, но НЕ останавливаем скролл
           if (isChordPanelOpen) setIsChordPanelOpen(false);
         }}
         onScroll={() => {
-            // Если пользователь скроллит вручную, синхронизируем preciseScrollTopRef
-            if (!scrolling && containerRef.current) {
+            // Синхронизируем положение, чтобы при ручном скролле автопрокрутка продолжалась корректно
+            if (containerRef.current) {
                 preciseScrollTopRef.current = containerRef.current.scrollTop;
             }
         }}
-        onTouchStart={() => {
-          // Остановка при касании для естественного поведения
-          if (scrolling) setScrolling(false);
-        }}
         style={{ fontSize: `${fontSize}px` }}
-        className="flex-1 overflow-y-auto px-4 py-8 mono-grid whitespace-pre select-none cursor-default"
+        className="flex-1 overflow-y-auto px-4 py-8 mono-grid whitespace-pre select-none cursor-default scroll-smooth-manual"
       >
         <div className="mb-8" style={{ fontSize: '1rem', fontFamily: 'sans-serif' }}>
             <h1 className="text-4xl font-black text-white mb-1 tracking-tight">{song.title}</h1>
@@ -181,10 +213,11 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
           {renderContent()}
         </div>
 
+        {/* Заполнитель в конце, чтобы песня могла доскроллиться до верха */}
         <div className="h-[75vh]"></div>
       </div>
 
-      {/* Footer Controls */}
+      {/* Панель управления (Футер) */}
       <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-xl border-t border-zinc-800 px-6 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 flex flex-col gap-4 z-[130]">
         <div className="flex items-center gap-4">
           <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest min-w-[80px]">Speed: {scrollSpeed}%</span>
