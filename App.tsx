@@ -46,10 +46,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSong = (id: string) => {
-    // Подтверждение теперь обрабатывается внутри SongEditor
     const newSongs = songs.filter(s => s.id !== id);
     setSongs(newSongs);
     storageService.saveSongs(newSongs);
+    // Сбрасываем всё и возвращаемся в список
     setCurrentSongId(null);
     setState(AppState.LIST);
   };
@@ -77,7 +77,11 @@ const App: React.FC = () => {
           <SongEditor 
             song={currentSong} 
             onSave={handleSaveSong} 
-            onCancel={() => setState(AppState.LIST)}
+            onCancel={() => {
+                // Если мы редактировали существующую песню, возвращаемся в режим исполнения
+                if (currentSongId) setState(AppState.PERFORMANCE);
+                else setState(AppState.LIST);
+            }}
             onDelete={handleDeleteSong}
           />
         )}
@@ -96,7 +100,7 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {/* Navigation Tab Bar (Only visible in main views) */}
+      {/* Navigation Tab Bar */}
       {(state === AppState.LIST || state === AppState.DICTIONARY) && (
         <div className="h-[calc(60px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-10 pb-[env(safe-area-inset-bottom)] z-[100]">
           <button 
@@ -117,7 +121,6 @@ const App: React.FC = () => {
         </div>
       )}
       
-      {/* Offline Indicator */}
       {!navigator.onLine && (
         <div className="fixed top-0 left-0 right-0 bg-orange-600 text-[10px] text-center py-0.5 z-[200]">
           OFFLINE MODE
