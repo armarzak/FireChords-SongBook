@@ -2,10 +2,12 @@
 {
   "name": "GuitarPro Songbook",
   "short_name": "Songbook",
-  "start_url": "index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
+  "scope": "/",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "https://picsum.photos/192/192",
