@@ -1,5 +1,5 @@
 {
-  "name": "GuitarPro Songbook PWA",
-  "description": "A professional songbook for guitarists, optimized for iPhone with offline support, autoscroll, and chord transposition.",
+  "name": "Songbook PWA",
+  "description": "songbook for guitarists",
   "requestFramePermissions": []
 }

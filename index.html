@@ -27,7 +27,6 @@
             user-select: none;
             overflow-x: hidden;
             touch-action: pan-y;
-            /* Системный моноширинный шрифт Apple */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         
@@ -37,12 +36,10 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Disable double tap zoom */
         * {
             touch-action: manipulation;
         }
 
-        /* Улучшение для скроллбара */
         ::-webkit-scrollbar {
             width: 4px;
         }
@@ -66,10 +63,14 @@
 </head>
 <body>
     <div id="root"></div>
+    <!-- Точка входа в приложение -->
+    <script type="module" src="index.tsx"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js');
+                navigator.serviceWorker.register('service-worker.js').catch(err => {
+                    console.log('SW registration failed: ', err);
+                });
             });
         }
     </script>
