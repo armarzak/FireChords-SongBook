@@ -1,15 +1,19 @@
 
-const CACHE_NAME = 'songbook-v1.5';
+const CACHE_NAME = 'songbook-v2.0';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/index.tsx',
+  '/App.tsx',
+  '/types.ts'
 ];
 
+// При установке кешируем основные файлы
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE).catch(err => console.warn('SW: Initial cache failed', err));
+      return cache.addAll(ASSETS_TO_CACHE);
     })
   );
   self.skipWaiting();
@@ -30,27 +34,27 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Стратегия Stale-While-Revalidate:
+// Сначала отдаем из кеша, но параллельно идем в сеть за обновлением.
 self.addEventListener('fetch', (event) => {
-  if (!event.request.url.startsWith(self.location.origin)) return;
+  // Игнорируем не-GET запросы (например, плагины браузера или аналитику)
+  if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          // Если запрос успешен, сохраняем/обновляем его в кеше
+          if (networkResponse && networkResponse.status === 200) {
+            cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        }).catch(() => {
+          // Если сети нет, cachedResponse уже вернется из внешнего промиса
+        });
 
-      return fetch(event.request).then((response) => {
-        // Кэшируем только успешные GET запросы
-        if (event.request.method === 'GET' && response.status === 200) {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return response;
-      }).catch(() => {
-        // Если сети нет, а это запрос страницы - отдаем корень (index.html)
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
-        }
+        // Возвращаем кешированный ответ немедленно, либо ждем сеть если в кеше пусто
+        return cachedResponse || fetchPromise;
       });
     })
   );
