@@ -6,6 +6,7 @@ import { SongList } from './components/SongList';
 import { SongEditor } from './components/SongEditor';
 import { PerformanceView } from './components/PerformanceView';
 import { ChordDictionary } from './components/ChordDictionary';
+import { Tuner } from './components/Tuner';
 
 const App: React.FC = () => {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -61,7 +62,6 @@ const App: React.FC = () => {
 
   const currentSong = songs.find(s => s.id === currentSongId);
   
-  // Получаем список уникальных артистов для автодополнения
   const existingArtists = Array.from(new Set(songs.map(s => s.artist))).sort();
 
   return (
@@ -100,13 +100,17 @@ const App: React.FC = () => {
         {state === AppState.DICTIONARY && (
           <ChordDictionary />
         )}
+
+        {state === AppState.TUNER && (
+          <Tuner />
+        )}
       </div>
 
-      {(state === AppState.LIST || state === AppState.DICTIONARY) && (
-        <div className="h-[calc(60px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-10 pb-[env(safe-area-inset-bottom)] z-[100]">
+      {(state === AppState.LIST || state === AppState.DICTIONARY || state === AppState.TUNER) && (
+        <div className="h-[calc(60px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 pb-[env(safe-area-inset-bottom)] z-[100]">
           <button 
             onClick={() => setState(AppState.LIST)}
-            className={`flex flex-col items-center gap-1 transition-colors ${state === AppState.LIST ? 'text-blue-500' : 'text-zinc-500'}`}
+            className={`flex flex-col items-center gap-1 transition-colors flex-1 ${state === AppState.LIST ? 'text-blue-500' : 'text-zinc-500'}`}
           >
             <div className={`w-1.5 h-1.5 rounded-full ${state === AppState.LIST ? 'bg-blue-500' : 'bg-transparent'}`} />
             <span className="text-[10px] font-black uppercase tracking-widest">Songs</span>
@@ -114,10 +118,18 @@ const App: React.FC = () => {
           
           <button 
             onClick={() => setState(AppState.DICTIONARY)}
-            className={`flex flex-col items-center gap-1 transition-colors ${state === AppState.DICTIONARY ? 'text-blue-500' : 'text-zinc-500'}`}
+            className={`flex flex-col items-center gap-1 transition-colors flex-1 ${state === AppState.DICTIONARY ? 'text-blue-500' : 'text-zinc-500'}`}
           >
             <div className={`w-1.5 h-1.5 rounded-full ${state === AppState.DICTIONARY ? 'bg-blue-500' : 'bg-transparent'}`} />
             <span className="text-[10px] font-black uppercase tracking-widest">Circle</span>
+          </button>
+
+          <button 
+            onClick={() => setState(AppState.TUNER)}
+            className={`flex flex-col items-center gap-1 transition-colors flex-1 ${state === AppState.TUNER ? 'text-blue-500' : 'text-zinc-500'}`}
+          >
+            <div className={`w-1.5 h-1.5 rounded-full ${state === AppState.TUNER ? 'bg-blue-500' : 'bg-transparent'}`} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Tuner</span>
           </button>
         </div>
       )}

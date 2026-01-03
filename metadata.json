@@ -1,5 +1,7 @@
 {
-  "name": "Songbook PWA",
+  "name": "GuitarPro Songbook",
   "description": "songbook for guitarists",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

@@ -11,7 +11,8 @@ export enum AppState {
   LIST = 'LIST',
   EDIT = 'EDIT',
   PERFORMANCE = 'PERFORMANCE',
-  DICTIONARY = 'DICTIONARY'
+  DICTIONARY = 'DICTIONARY',
+  TUNER = 'TUNER'
 }
 
 export enum ViewMode {
