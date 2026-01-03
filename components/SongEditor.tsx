@@ -4,23 +4,59 @@ import { Song } from '../types';
 
 interface SongEditorProps {
   song?: Song;
+  existingArtists: string[];
   onSave: (song: Partial<Song>) => void;
   onCancel: () => void;
   onDelete?: (id: string) => void;
 }
 
-export const SongEditor: React.FC<SongEditorProps> = ({ song, onSave, onCancel, onDelete }) => {
+export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, onSave, onCancel, onDelete }) => {
   const [title, setTitle] = useState(song?.title || '');
   const [artist, setArtist] = useState(song?.artist || '');
   const [content, setContent] = useState(song?.content || '');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
   const deleteTimerRef = useRef<number | null>(null);
+  const suggestionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return () => {
       if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
     };
   }, []);
+
+  // Закрытие подсказок при клике вне области
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleArtistChange = (value: string) => {
+    setArtist(value);
+    if (value.trim().length > 0) {
+      const filtered = existingArtists.filter(a => 
+        a.toLowerCase().startsWith(value.toLowerCase()) && 
+        a.toLowerCase() !== value.toLowerCase()
+      );
+      setSuggestions(filtered.slice(0, 5)); // Показываем топ-5
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectSuggestion = (suggestion: string) => {
+    setArtist(suggestion);
+    setShowSuggestions(false);
+  };
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -43,13 +79,11 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, onSave, onCancel, 
 
     if (!isConfirmingDelete) {
       setIsConfirmingDelete(true);
-      // Сброс через 3 секунды
       if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
       deleteTimerRef.current = window.setTimeout(() => {
         setIsConfirmingDelete(false);
       }, 3000);
     } else {
-      // Второе нажатие - удаляем
       if (onDelete) {
         onDelete(song.id);
       }
@@ -65,19 +99,43 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, onSave, onCancel, 
         <button onClick={handleSave} className="text-blue-500 font-bold text-lg px-2 active:opacity-50">Save</button>
       </div>
 
-      <div className="flex-1 flex flex-col space-y-0 overflow-y-auto bg-black">
+      <div className="flex-1 flex flex-col space-y-0 overflow-y-auto bg-black relative">
         <input 
           className="w-full bg-[#121212] text-2xl font-black border-b border-white/5 py-6 px-6 focus:ring-0 placeholder:text-zinc-800 text-white outline-none"
           placeholder="Song Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
-        <input 
-          className="w-full bg-[#121212] text-lg font-medium border-b border-white/5 py-4 px-6 focus:ring-0 placeholder:text-zinc-800 text-zinc-400 outline-none"
-          placeholder="Artist / Author"
-          value={artist}
-          onChange={(e) => setArtist(e.target.value)}
-        />
+        
+        <div className="relative" ref={suggestionRef}>
+          <input 
+            className="w-full bg-[#121212] text-lg font-medium border-b border-white/5 py-4 px-6 focus:ring-0 placeholder:text-zinc-800 text-zinc-400 outline-none"
+            placeholder="Artist / Author"
+            value={artist}
+            onChange={(e) => handleArtistChange(e.target.value)}
+            onFocus={() => handleArtistChange(artist)}
+            autoComplete="off"
+          />
+          
+          {/* Suggestions Dropdown */}
+          {showSuggestions && (
+            <div className="absolute left-0 right-0 bg-zinc-900 border-b border-white/10 z-[160] shadow-2xl animate-in fade-in slide-in-from-top-1">
+              {suggestions.map((s, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => selectSuggestion(s)}
+                  className="w-full text-left px-6 py-4 text-white hover:bg-zinc-800 border-b border-white/5 active:bg-blue-600 transition-colors flex items-center justify-between"
+                >
+                  <span className="font-semibold">{s}</span>
+                  <svg className="w-4 h-4 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <textarea 
           className="flex-1 bg-black p-6 text-[16px] mono-grid resize-none border-none focus:ring-0 placeholder:text-zinc-800 text-zinc-200 leading-relaxed min-h-[300px] outline-none"
           placeholder="Paste your chords and lyrics here...&#10;&#10;C        G&#10;Hello my friend..."

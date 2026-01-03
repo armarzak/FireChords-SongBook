@@ -49,7 +49,6 @@ const App: React.FC = () => {
     const newSongs = songs.filter(s => s.id !== id);
     setSongs(newSongs);
     storageService.saveSongs(newSongs);
-    // Сбрасываем всё и возвращаемся в список
     setCurrentSongId(null);
     setState(AppState.LIST);
   };
@@ -61,6 +60,9 @@ const App: React.FC = () => {
   };
 
   const currentSong = songs.find(s => s.id === currentSongId);
+  
+  // Получаем список уникальных артистов для автодополнения
+  const existingArtists = Array.from(new Set(songs.map(s => s.artist))).sort();
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#121212] text-white select-none flex flex-col">
@@ -76,9 +78,9 @@ const App: React.FC = () => {
         {state === AppState.EDIT && (
           <SongEditor 
             song={currentSong} 
+            existingArtists={existingArtists}
             onSave={handleSaveSong} 
             onCancel={() => {
-                // Если мы редактировали существующую песню, возвращаемся в режим исполнения
                 if (currentSongId) setState(AppState.PERFORMANCE);
                 else setState(AppState.LIST);
             }}
@@ -100,7 +102,6 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {/* Navigation Tab Bar */}
       {(state === AppState.LIST || state === AppState.DICTIONARY) && (
         <div className="h-[calc(60px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-10 pb-[env(safe-area-inset-bottom)] z-[100]">
           <button 
