@@ -85,7 +85,8 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     const deltaTime = time - lastFrameTimeRef.current;
     lastFrameTimeRef.current = time;
 
-    const speedFactor = (scrollSpeedRef.current / 100) * 0.08; 
+    // Увеличен коэффициент скорости с 0.08 до 0.35 для более быстрого скролла
+    const speedFactor = (scrollSpeedRef.current / 100) * 0.35; 
     const increment = speedFactor * deltaTime;
 
     preciseScrollTopRef.current += increment;
