@@ -13,7 +13,7 @@ interface PerformanceViewProps {
 
 export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose, onEdit, onUpdateTranspose }) => {
   const [transpose, setTranspose] = useState(song.transpose || 0);
-  const [fontSize, setFontSize] = useState(18);
+  const [fontSize, setFontSize] = useState(18); // Дефолтное значение, будет пересчитано
   const [scrolling, setScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(50);
   const [isChordPanelOpen, setIsChordPanelOpen] = useState(false);
@@ -31,6 +31,41 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
   useEffect(() => {
     scrollSpeedRef.current = scrollSpeed;
   }, [scrollSpeed]);
+
+  // Эффект для автоматического подбора масштаба при открытии
+  useEffect(() => {
+    const autoFitFontSize = () => {
+      if (!containerRef.current) return;
+
+      // Получаем ширину контейнера за вычетом паддингов (px-4 = 16px * 2 = 32px)
+      const padding = 40; // 32px + небольшой запас
+      const availableWidth = containerRef.current.clientWidth - padding;
+      
+      // Генерируем текст с учетом текущей транспозиции для точности
+      const text = transposeText(song.content, transpose);
+      const lines = text.split('\n');
+      
+      // Находим самую длинную строку
+      const maxChars = Math.max(...lines.map(l => l.length), 1);
+      
+      /**
+       * Для моноширинных шрифтов (SF Mono, Courier) 
+       * ширина символа составляет примерно 0.6 от высоты (fontSize).
+       */
+      const charWidthRatio = 0.61; 
+      let idealSize = Math.floor(availableWidth / (maxChars * charWidthRatio));
+      
+      // Ограничиваем разумными пределами (10px для очень длинных, 26px для коротких)
+      // Чтобы не превращать короткие стихи в гигантские буквы
+      const clampedSize = Math.min(Math.max(idealSize, 10), 26);
+      
+      setFontSize(clampedSize);
+    };
+
+    // Небольшая задержка, чтобы DOM успел отрисоваться и clientWidth был верен
+    const timer = setTimeout(autoFitFontSize, 100);
+    return () => clearTimeout(timer);
+  }, [song.id]); // Срабатывает один раз при загрузке конкретной песни
 
   useEffect(() => {
     if ('wakeLock' in navigator) {
@@ -133,7 +168,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       initialPinchDistanceRef.current = getDistance(e.touches);
       initialFontSizeRef.current = fontSize;
     }
-    // Остановка при нажатии убрана по просьбе пользователя
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -141,7 +175,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       const currentDistance = getDistance(e.touches);
       const ratio = currentDistance / initialPinchDistanceRef.current;
       const newSize = Math.round(initialFontSizeRef.current * ratio);
-      // Ограничиваем размер шрифта от 10 до 80
       setFontSize(Math.min(Math.max(newSize, 10), 80));
     }
   };
@@ -157,7 +190,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header - Всегда виден */}
+      {/* Header */}
       <div className="pt-[env(safe-area-inset-top)] bg-zinc-900 border-b border-zinc-800 px-4 flex justify-between items-center h-20 shrink-0 z-[140]">
         <div className="flex items-center gap-1">
           <button onClick={onClose} className="text-zinc-400 active:text-white px-2 py-4 text-sm font-medium">Back</button>
@@ -168,14 +201,14 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
           <h2 className="text-[10px] font-bold truncate max-w-[120px] mb-1 opacity-50 uppercase tracking-widest">{song.title}</h2>
           <div className="flex gap-2">
              <div className="flex items-center bg-zinc-800 rounded-lg border border-white/5">
-               <button onClick={() => changeTranspose(-1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">-</button>
-               <span className="text-[9px] text-yellow-500 font-bold w-5 text-center">TR</span>
-               <button onClick={() => changeTranspose(1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">+</button>
-             </div>
-             <div className="flex items-center bg-zinc-800 rounded-lg border border-white/5">
                <button onClick={() => changeFontSize(-2)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">A-</button>
                <span className="text-[9px] text-blue-500 font-bold w-5 text-center">SZ</span>
                <button onClick={() => changeFontSize(2)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">A+</button>
+             </div>
+             <div className="flex items-center bg-zinc-800 rounded-lg border border-white/5">
+               <button onClick={() => changeTranspose(-1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">-</button>
+               <span className="text-[9px] text-yellow-500 font-bold w-5 text-center">TR</span>
+               <button onClick={() => changeTranspose(1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">+</button>
              </div>
           </div>
         </div>
@@ -188,15 +221,13 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         </button>
       </div>
 
-      {/* Контент песни */}
+      {/* Song Content */}
       <div 
         ref={containerRef}
         onClick={() => {
-          // Закрываем панель аккордов при тапе на текст, но НЕ останавливаем скролл
           if (isChordPanelOpen) setIsChordPanelOpen(false);
         }}
         onScroll={() => {
-            // Синхронизируем положение, чтобы при ручном скролле автопрокрутка продолжалась корректно
             if (containerRef.current) {
                 preciseScrollTopRef.current = containerRef.current.scrollTop;
             }
@@ -213,11 +244,10 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
           {renderContent()}
         </div>
 
-        {/* Заполнитель в конце, чтобы песня могла доскроллиться до верха */}
         <div className="h-[75vh]"></div>
       </div>
 
-      {/* Панель управления (Футер) */}
+      {/* Controls */}
       <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-xl border-t border-zinc-800 px-6 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 flex flex-col gap-4 z-[130]">
         <div className="flex items-center gap-4">
           <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest min-w-[80px]">Speed: {scrollSpeed}%</span>
