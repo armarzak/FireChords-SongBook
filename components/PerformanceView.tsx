@@ -23,6 +23,12 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
   const preciseScrollTopRef = useRef<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
   const touchStartRef = useRef<{x: number, y: number} | null>(null);
+  
+  // КРИТИЧЕСКИ ВАЖНО: используем Ref для скорости, чтобы не пересоздавать useCallback
+  const scrollSpeedRef = useRef(scrollSpeed);
+  useEffect(() => {
+    scrollSpeedRef.current = scrollSpeed;
+  }, [scrollSpeed]);
 
   useEffect(() => {
     if ('wakeLock' in navigator) {
@@ -30,11 +36,11 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     }
   }, []);
 
-  // Основная функция анимации прокрутки
+  // Основная функция прокрутки
   const handleScrollFrame = useCallback((time: number) => {
-    if (!scrolling || !containerRef.current) return;
+    // Если скролл выключен — просто выходим, не запрашивая следующий кадр
+    if (!containerRef.current) return;
 
-    // Инициализация времени при первом кадре
     if (!lastFrameTimeRef.current) {
       lastFrameTimeRef.current = time;
       scrollIntervalRef.current = requestAnimationFrame(handleScrollFrame);
@@ -44,31 +50,26 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     const deltaTime = time - lastFrameTimeRef.current;
     lastFrameTimeRef.current = time;
 
-    // Базовый коэффициент скорости. 
-    // На iPhone scrollSpeed 50 должен давать комфортное движение.
-    // Вычисляем пикселей в миллисекунду.
-    const speedFactor = (scrollSpeed / 100) * 0.08; 
+    // Используем значение из Ref, чтобы изменение ползунка не прерывало поток
+    const speedFactor = (scrollSpeedRef.current / 100) * 0.08; 
     const increment = speedFactor * deltaTime;
 
-    // Накапливаем точное значение
     preciseScrollTopRef.current += increment;
-    
-    // Применяем к элементу
     containerRef.current.scrollTop = preciseScrollTopRef.current;
 
-    // Проверка на достижение конца
-    const isAtBottom = containerRef.current.scrollTop + containerRef.current.clientHeight >= containerRef.current.scrollHeight - 5;
+    const isAtBottom = containerRef.current.scrollTop + containerRef.current.clientHeight >= containerRef.current.scrollHeight - 2;
     
     if (isAtBottom) {
       setScrolling(false);
     } else {
+      // Продолжаем цикл, только если scrolling все еще true
       scrollIntervalRef.current = requestAnimationFrame(handleScrollFrame);
     }
-  }, [scrolling, scrollSpeed]);
+  }, []); // Пустой массив зависимостей, функция никогда не меняется
 
+  // Управление запуском/остановкой цикла
   useEffect(() => {
     if (scrolling) {
-      // Синхронизируем текущую позицию перед стартом
       if (containerRef.current) {
         preciseScrollTopRef.current = containerRef.current.scrollTop;
       }
@@ -77,6 +78,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     } else {
       if (scrollIntervalRef.current) {
         cancelAnimationFrame(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
       }
     }
     return () => { 
@@ -125,7 +127,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    // Если пользователь коснулся экрана во время скролла — останавливаем
     if (scrolling) setScrolling(false);
   };
 
@@ -184,13 +185,12 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
           if (isChordPanelOpen) setIsChordPanelOpen(false);
         }}
         onScroll={() => {
-            // Обновляем точный счетчик, если пользователь скроллит вручную
             if (!scrolling && containerRef.current) {
                 preciseScrollTopRef.current = containerRef.current.scrollTop;
             }
         }}
         style={{ fontSize: `${fontSize}px` }}
-        className="flex-1 overflow-y-auto px-4 py-8 mono-grid whitespace-pre select-none cursor-default scroll-smooth-manual"
+        className="flex-1 overflow-y-auto px-4 py-8 mono-grid whitespace-pre select-none cursor-default"
       >
         <div className="mb-8" style={{ fontSize: '1rem', fontFamily: 'sans-serif' }}>
             <h1 className="text-4xl font-black text-white mb-1 tracking-tight">{song.title}</h1>
