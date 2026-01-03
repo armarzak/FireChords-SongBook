@@ -10,15 +10,16 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://picsum.photos/id/1082/192/192",
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImEiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiMzZTRiYmU7c3RvcC1vcGFjaXR5OjEiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiMxZTIyNGY7c3RvcC1vcGFjaXR5OjEiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEwMCIgZmlsbD0idXJsKCNhKSIvPjxwYXRoIGQ9Ik0xMjAgMTgwIDMyMCAxODAgMzIwIDM4MCAxMjAgMzIwWiIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik0xMjAgMTgwIDMyMCAxODAgMzIwIDM4MCAxMjAgMzIwWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjUiLz48cGF0aCBkPSJNMTQwIDIwMEgyMDBWMzYwSDE0MFoiIGZpbGw9IiM4YjQ1MTMiLz48cGF0aCBkPSJNMjUwIDI1MEEyMCAyMCAwIDEgMSAyNTAgMjkwaC00MHYtNDBaIiBmaWxsPSIjZmY4YzAwIi8+PHBhdGggZD0iTTMwIDI1MCBxODAgMTAwIDIwMCAwIDgwIDEwMCAyMDAgMCIgc3Ryb2tlPSIjMDBmZmZmIiBzdHJva2Utd2lkdGg9IjEwIiBmaWxsPSJub25lIiBvcGFjaXR5PSIuOCIvPjwvc3ZnPg==",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "https://picsum.photos/id/1082/512/512",
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImEiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiMzZTRiYmU7c3RvcC1vcGFjaXR5OjEiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiMxZTIyNGY7c3RvcC1vcGFjaXR5OjEiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEwMCIgZmlsbD0idXJsKCNhKSIvPjxwYXRoIGQ9Ik0xMjAgMTgwIDMyMCAxODAgMzIwIDM4MCAxMjAgMzIwWiIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik0xMjAgMTgwIDMyMCAxODAgMzIwIDM4MCAxMjAgMzIwWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjUiLz48cGF0aCBkPSJNMTQwIDIwMEgyMDBWMzYwSDE0MFoiIGZpbGw9IiM4YjQ1MTMiLz48cGF0aCBkPSJNMjUwIDI1MEEyMCAyMCAwIDEgMSAyNTAgMjkwaC00MHYtNDBaIiBmaWxsPSIjZmY4YzAwIi8+PHBhdGggZD0iTTMwIDI1MCBxODAgMTAwIDIwMCAwIDgwIDEwMCAyMDAgMCIgc3Ryb2tlPSIjMDBmZmZmIiBzdHJva2Utd2lkdGg9IjEwIiBmaWxsPSJub25lIiBvcGFjaXR5PSIuOCIvPjwvc3ZnPg==",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }
