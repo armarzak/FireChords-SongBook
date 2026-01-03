@@ -113,27 +113,30 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     >
       {!scrolling && (
         <div className="pt-[env(safe-area-inset-top)] bg-zinc-900 border-b border-zinc-800 px-4 flex justify-between items-center h-20 shrink-0">
-          <button onClick={onClose} className="text-zinc-400 active:text-white px-2 py-4">Back</button>
+          <div className="flex items-center gap-1">
+            <button onClick={onClose} className="text-zinc-400 active:text-white px-2 py-4 text-sm font-medium">Back</button>
+            <button onClick={onEdit} className="text-blue-500 active:text-blue-400 px-2 py-4 text-sm font-bold">Edit</button>
+          </div>
           
           <div className="flex flex-col items-center">
-            <h2 className="text-xs font-bold truncate max-w-[120px] mb-1 opacity-50 uppercase tracking-widest">{song.title}</h2>
+            <h2 className="text-[10px] font-bold truncate max-w-[120px] mb-1 opacity-50 uppercase tracking-widest">{song.title}</h2>
             <div className="flex gap-2">
                <div className="flex items-center bg-zinc-800 rounded-lg border border-white/5">
-                 <button onClick={() => changeTranspose(-1)} className="w-10 h-8 flex items-center justify-center text-zinc-400 active:text-white">-</button>
-                 <span className="text-[10px] text-yellow-500 font-bold w-6 text-center">TR</span>
-                 <button onClick={() => changeTranspose(1)} className="w-10 h-8 flex items-center justify-center text-zinc-400 active:text-white">+</button>
+                 <button onClick={() => changeTranspose(-1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">-</button>
+                 <span className="text-[9px] text-yellow-500 font-bold w-5 text-center">TR</span>
+                 <button onClick={() => changeTranspose(1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">+</button>
                </div>
                <div className="flex items-center bg-zinc-800 rounded-lg border border-white/5">
-                 <button onClick={() => changeFontSize(-2)} className="w-10 h-8 flex items-center justify-center text-zinc-400 active:text-white">A-</button>
-                 <span className="text-[10px] text-blue-500 font-bold w-6 text-center">SZ</span>
-                 <button onClick={() => changeFontSize(2)} className="w-10 h-8 flex items-center justify-center text-zinc-400 active:text-white">A+</button>
+                 <button onClick={() => changeFontSize(-2)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">A-</button>
+                 <span className="text-[9px] text-blue-500 font-bold w-5 text-center">SZ</span>
+                 <button onClick={() => changeFontSize(2)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">A+</button>
                </div>
             </div>
           </div>
 
           <button 
             onClick={() => setIsChordPanelOpen(!isChordPanelOpen)} 
-            className="text-blue-500 font-bold text-xs bg-blue-500/10 px-4 py-2 rounded-full active:bg-blue-500/20"
+            className="text-blue-500 font-bold text-[11px] bg-blue-500/10 px-3 py-1.5 rounded-full active:bg-blue-500/20 uppercase tracking-wider"
           >
             Chords
           </button>
@@ -154,7 +157,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
             <p className="text-xl text-zinc-500">{song.artist}</p>
         </div>
         
-        {/* Контейнер с сохранением пробелов */}
         <div className="leading-[1.45] tracking-normal">
           {renderContent()}
         </div>

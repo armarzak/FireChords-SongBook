@@ -46,12 +46,12 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSong = (id: string) => {
-    if (confirm('Delete this song?')) {
-      const newSongs = songs.filter(s => s.id !== id);
-      setSongs(newSongs);
-      storageService.saveSongs(newSongs);
-      setState(AppState.LIST);
-    }
+    // Подтверждение теперь обрабатывается внутри SongEditor
+    const newSongs = songs.filter(s => s.id !== id);
+    setSongs(newSongs);
+    storageService.saveSongs(newSongs);
+    setCurrentSongId(null);
+    setState(AppState.LIST);
   };
 
   const handleUpdateTranspose = (id: string, transpose: number) => {
