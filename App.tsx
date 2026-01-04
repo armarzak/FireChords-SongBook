@@ -15,6 +15,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setSongs(storageService.getSongs());
+    
+    // Блокировка резинового скролла на уровне body для iOS PWA
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+    };
   }, []);
 
   const handleAddSong = () => {
@@ -61,11 +72,10 @@ const App: React.FC = () => {
   };
 
   const currentSong = songs.find(s => s.id === currentSongId);
-  
   const existingArtists = Array.from(new Set(songs.map(s => s.artist))).sort();
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#121212] text-white select-none flex flex-col">
+    <div className="h-full w-full overflow-hidden bg-[#121212] text-white select-none flex flex-col fixed inset-0">
       <div className="flex-1 relative overflow-hidden">
         {state === AppState.LIST && (
           <SongList 
@@ -107,7 +117,7 @@ const App: React.FC = () => {
       </div>
 
       {(state === AppState.LIST || state === AppState.DICTIONARY || state === AppState.TUNER) && (
-        <div className="h-[calc(60px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 pb-[env(safe-area-inset-bottom)] z-[100]">
+        <div className="h-[calc(60px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 pb-[env(safe-area-inset-bottom)] z-[100] shrink-0">
           <button 
             onClick={() => setState(AppState.LIST)}
             className={`flex flex-col items-center gap-1 transition-colors flex-1 ${state === AppState.LIST ? 'text-blue-500' : 'text-zinc-500'}`}
@@ -135,7 +145,7 @@ const App: React.FC = () => {
       )}
       
       {!navigator.onLine && (
-        <div className="fixed top-0 left-0 right-0 bg-orange-600 text-[10px] text-center py-0.5 z-[200]">
+        <div className="fixed top-0 left-0 right-0 bg-orange-600 text-[8px] font-black text-center py-0.5 z-[200] tracking-widest">
           OFFLINE MODE
         </div>
       )}

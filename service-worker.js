@@ -1,18 +1,18 @@
 
-const CACHE_NAME = 'songbook-v2.0';
+const CACHE_NAME = 'songbook-v5.0';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/index.tsx',
-  '/App.tsx',
-  '/types.ts'
+  'https://cdn.tailwindcss.com',
+  'https://esm.sh/react@^19.2.3',
+  'https://esm.sh/react-dom@^19.2.3'
 ];
 
-// При установке кешируем основные файлы
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      console.log('Caching App Shell & Deps');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
@@ -21,41 +21,39 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
+    caches.keys().then((keys) => {
+      return Promise.all(keys.map((key) => {
+        if (key !== CACHE_NAME) return caches.delete(key);
+      }));
     })
   );
   self.clients.claim();
 });
 
-// Стратегия Stale-While-Revalidate:
-// Сначала отдаем из кеша, но параллельно идем в сеть за обновлением.
 self.addEventListener('fetch', (event) => {
-  // Игнорируем не-GET запросы (например, плагины браузера или аналитику)
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          // Если запрос успешен, сохраняем/обновляем его в кеше
-          if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
-          }
-          return networkResponse;
-        }).catch(() => {
-          // Если сети нет, cachedResponse уже вернется из внешнего промиса
-        });
+  // Навигация -> index.html (для SPA/PWA)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
 
-        // Возвращаем кешированный ответ немедленно, либо ждем сеть если в кеше пусто
-        return cachedResponse || fetchPromise;
+  // Кеш сначала, потом сеть (для скорости и офлайна)
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const cacheCopy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
+        }
+        return networkResponse;
+      }).catch(() => {
+        // Ошибка сети - возвращаем кеш или ничего
       });
+      return cachedResponse || fetchPromise;
     })
   );
 });
