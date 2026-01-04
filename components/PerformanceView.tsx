@@ -11,14 +11,13 @@ interface PerformanceViewProps {
   onUpdateTranspose: (id: string, newTranspose: number) => void;
 }
 
-// Регулярные выражения для определения типов строк
 const sectionRegex = /^\[?(Intro|Verse|Chorus|Bridge|Outro|Solo|Instrumental|Припев|Куплет|Вступление|Проигрыш|Кода|Соло)(?:\s*\d+)?\]?:?\s*$/i;
 
 export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose, onEdit, onUpdateTranspose }) => {
   const [transpose, setTranspose] = useState(song.transpose || 0);
   const [fontSize, setFontSize] = useState(18);
   const [scrolling, setScrolling] = useState(false);
-  const [scrollSpeed, setScrollSpeed] = useState(30); // По умолчанию чуть медленнее
+  const [scrollSpeed, setScrollSpeed] = useState(50); 
   const [isChordPanelOpen, setIsChordPanelOpen] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,14 +69,15 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     const deltaTime = time - lastFrameTimeRef.current;
     lastFrameTimeRef.current = time;
 
-    // Экстремальный множитель 15.0 для удовлетворения любых запросов по скорости
-    const speedFactor = (scrollSpeedRef.current / 100) * 15.0; 
-    const increment = speedFactor * (deltaTime / 16.6); 
+    const normalizedSpeed = scrollSpeedRef.current / 100;
+    // Множитель уменьшен до 0.5 для сверхмедленной прокрутки
+    const speedMultiplier = 0.5;
+    const increment = normalizedSpeed * speedMultiplier * (deltaTime / 16.6); 
 
     preciseScrollTopRef.current += increment;
-    containerRef.current.scrollTop = Math.floor(preciseScrollTopRef.current);
+    containerRef.current.scrollTop = preciseScrollTopRef.current;
 
-    const isAtBottom = containerRef.current.scrollTop + containerRef.current.clientHeight >= containerRef.current.scrollHeight - 5;
+    const isAtBottom = containerRef.current.scrollTop + containerRef.current.clientHeight >= containerRef.current.scrollHeight - 2;
     
     if (isAtBottom) {
       setScrolling(false);
@@ -120,10 +120,10 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     const trimmed = line.trim();
     if (sectionRegex.test(trimmed)) {
       const lower = trimmed.toLowerCase();
-      if (lower.includes('intro') || lower.includes('вступление')) return 'text-purple-400 font-black mb-1 mt-4';
-      if (lower.includes('chorus') || lower.includes('припев')) return 'text-orange-500 font-black mb-1 mt-4';
-      if (lower.includes('verse') || lower.includes('куплет')) return 'text-emerald-400 font-black mb-1 mt-4';
-      return 'text-cyan-400 font-black mb-1 mt-4';
+      if (lower.includes('intro') || lower.includes('вступление')) return 'text-purple-400 font-black mb-2 mt-8';
+      if (lower.includes('chorus') || lower.includes('припев')) return 'text-orange-500 font-black mb-2 mt-8 scale-105 origin-left';
+      if (lower.includes('verse') || lower.includes('куплет')) return 'text-emerald-400 font-black mb-2 mt-8';
+      return 'text-cyan-400 font-black mb-2 mt-8';
     }
     return '';
   };
@@ -135,7 +135,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       const parts = line.split(/(\b[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*(?![a-zA-Z0-9#b]))/g);
       
       return (
-        <div key={i} className={`min-h-[1.2em] leading-tight ${sectionStyle}`}>
+        <div key={i} className={`min-h-[1.2em] leading-tight transition-all ${sectionStyle}`}>
           {parts.map((part, pi) => {
             if (part.match(/^[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*$/)) {
               return <span key={pi} className="text-yellow-400 font-bold">{part}</span>;
@@ -178,21 +178,21 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
           <h2 className="text-[10px] font-bold truncate max-w-[120px] mb-1 opacity-50 uppercase tracking-widest">{song.title}</h2>
           <div className="flex gap-2">
              <div className="flex items-center bg-zinc-800 rounded-lg border border-white/5">
-               <button onClick={() => setFontSize(s => Math.max(s-2, 10))} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">A-</button>
-               <span className="text-[9px] text-blue-500 font-bold w-5 text-center">SZ</span>
-               <button onClick={() => setFontSize(s => Math.min(s+2, 80))} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">A+</button>
+               <button onClick={() => setFontSize(s => Math.max(s-2, 10))} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white font-bold">A-</button>
+               <span className="text-[9px] text-blue-500 font-black w-5 text-center">SZ</span>
+               <button onClick={() => setFontSize(s => Math.min(s+2, 80))} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white font-bold">A+</button>
              </div>
              <div className="flex items-center bg-zinc-800 rounded-lg border border-white/5">
-               <button onClick={() => changeTranspose(-1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">-</button>
-               <span className="text-[9px] text-yellow-500 font-bold w-5 text-center">TR</span>
-               <button onClick={() => changeTranspose(1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white">+</button>
+               <button onClick={() => changeTranspose(-1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white font-bold">-</button>
+               <span className="text-[9px] text-yellow-500 font-black w-5 text-center">TR</span>
+               <button onClick={() => changeTranspose(1)} className="w-9 h-7 flex items-center justify-center text-zinc-400 active:text-white font-bold">+</button>
              </div>
           </div>
         </div>
 
         <button 
           onClick={() => setIsChordPanelOpen(!isChordPanelOpen)} 
-          className={`font-bold text-[11px] px-3 py-1.5 rounded-full uppercase tracking-wider transition-colors ${isChordPanelOpen ? 'bg-blue-600 text-white' : 'bg-blue-500/10 text-blue-500 active:bg-blue-500/20'}`}
+          className={`font-bold text-[11px] px-3 py-1.5 rounded-full uppercase tracking-wider transition-colors ${isChordPanelOpen ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]' : 'bg-blue-500/10 text-blue-500 active:bg-blue-500/20'}`}
         >
           Chords
         </button>
@@ -201,30 +201,44 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       <div 
         ref={containerRef}
         onClick={() => isChordPanelOpen && setIsChordPanelOpen(false)}
-        onScroll={() => { if (containerRef.current) preciseScrollTopRef.current = containerRef.current.scrollTop; }}
+        onScroll={() => { 
+          if (containerRef.current) {
+            preciseScrollTopRef.current = containerRef.current.scrollTop;
+          }
+        }}
         style={{ fontSize: `${fontSize}px` }}
-        className="flex-1 overflow-y-auto px-4 py-8 mono-grid whitespace-pre select-none scroll-smooth-manual"
+        className="flex-1 overflow-y-auto px-4 py-8 mono-grid whitespace-pre-wrap break-words select-none"
       >
         <div className="mb-10" style={{ fontSize: '1rem', fontFamily: 'sans-serif' }}>
             <h1 className="text-4xl font-black text-white mb-1 tracking-tight">{song.title}</h1>
             <p className="text-xl text-zinc-500">{song.artist}</p>
         </div>
-        <div className="leading-[1.5] tracking-normal pb-32">{renderContent()}</div>
-        <div className="h-[75vh]"></div>
+        <div className="leading-[1.65] tracking-normal pb-32">{renderContent()}</div>
+        <div className="h-[80vh]"></div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-2xl border-t border-zinc-800 px-6 pb-[calc(15px+env(safe-area-inset-bottom))] pt-5 flex flex-col gap-4 z-[130]">
-        <div className="flex items-center gap-4">
-          <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest min-w-[80px]">Speed: {scrollSpeed}%</span>
-          <input 
-            type="range" min="1" max="100" value={scrollSpeed} 
-            onChange={(e) => setScrollSpeed(parseInt(e.target.value))}
-            className="flex-1 accent-blue-500 h-1.5 rounded-full bg-zinc-800 appearance-none cursor-pointer"
-          />
+      <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-3xl border-t border-zinc-800 px-6 pb-[calc(15px+env(safe-area-inset-bottom))] pt-5 flex flex-col gap-4 z-[130]">
+        <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest min-w-[70px]">Speed: {scrollSpeed}%</span>
+            <input 
+              type="range" min="1" max="100" value={scrollSpeed} 
+              onChange={(e) => setScrollSpeed(parseInt(e.target.value))}
+              className="flex-1 accent-blue-500 h-1.5 rounded-full bg-zinc-800 appearance-none cursor-pointer"
+            />
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest min-w-[70px]">Size: {fontSize}px</span>
+            <input 
+              type="range" min="10" max="80" value={fontSize} 
+              onChange={(e) => setFontSize(parseInt(e.target.value))}
+              className="flex-1 accent-emerald-500 h-1.5 rounded-full bg-zinc-800 appearance-none cursor-pointer"
+            />
+          </div>
         </div>
         <button 
           onClick={() => setScrolling(!scrolling)}
-          className={`w-full py-4 rounded-2xl font-black text-lg active:scale-95 transition-all shadow-lg ${scrolling ? 'bg-red-500 text-white shadow-red-500/20' : 'bg-blue-600 text-white shadow-blue-500/20'}`}
+          className={`w-full py-4 rounded-2xl font-black text-lg active:scale-[0.97] transition-all shadow-lg ${scrolling ? 'bg-red-500 text-white shadow-red-500/20' : 'bg-blue-600 text-white shadow-blue-500/20'}`}
         >
           {scrolling ? 'STOP' : 'START AUTO-SCROLL'}
         </button>
