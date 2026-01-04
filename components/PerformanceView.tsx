@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Song } from '../types';
 import { transposeText, chordRegex } from '../services/chordService';
 import { ChordPanel } from './ChordPanel';
+import { ChordDiagram } from './ChordDiagram';
+import { getFingerings } from '../services/chordLibrary';
 
 interface PerformanceViewProps {
   song: Song;
@@ -19,6 +21,9 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
   const [scrolling, setScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(50); 
   const [isChordPanelOpen, setIsChordPanelOpen] = useState(false);
+  
+  // Состояние для всплывающего аккорда
+  const [popover, setPopover] = useState<{ name: string; x: number; y: number; variation: number } | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollIntervalRef = useRef<number | null>(null);
@@ -70,7 +75,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     lastFrameTimeRef.current = time;
 
     const normalizedSpeed = scrollSpeedRef.current / 100;
-    // Множитель уменьшен до 0.5 для сверхмедленной прокрутки
     const speedMultiplier = 0.5;
     const increment = normalizedSpeed * speedMultiplier * (deltaTime / 16.6); 
 
@@ -88,6 +92,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
 
   useEffect(() => {
     if (scrolling) {
+      setPopover(null); // Закрываем поповер при автоскролле
       if (containerRef.current) {
         preciseScrollTopRef.current = containerRef.current.scrollTop;
       }
@@ -108,12 +113,43 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     const newVal = transpose + dir;
     setTranspose(newVal);
     onUpdateTranspose(song.id, newVal);
+    setPopover(null); // Закрываем при смене тональности, так как аккорды меняются
   };
 
   const getUniqueChords = () => {
     const text = transposeText(song.content, transpose);
     const matches = text.match(chordRegex) || [];
     return Array.from(new Set(matches));
+  };
+
+  const handleChordClick = (e: React.MouseEvent, chord: string) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    
+    // Если кликнули по тому же аккорду, закрываем
+    if (popover && popover.name === chord) {
+      setPopover(null);
+      return;
+    }
+
+    setPopover({
+      name: chord,
+      x: rect.left + rect.width / 2,
+      y: rect.top,
+      variation: 0
+    });
+  };
+
+  const nextVariation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!popover) return;
+    const fingerings = getFingerings(popover.name);
+    if (fingerings.length > 1) {
+      setPopover({
+        ...popover,
+        variation: (popover.variation + 1) % fingerings.length
+      });
+    }
   };
 
   const getLineStyle = (line: string) => {
@@ -138,7 +174,15 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         <div key={i} className={`min-h-[1.2em] leading-tight transition-all ${sectionStyle}`}>
           {parts.map((part, pi) => {
             if (part.match(/^[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*$/)) {
-              return <span key={pi} className="text-yellow-400 font-bold">{part}</span>;
+              return (
+                <button 
+                  key={pi} 
+                  onClick={(e) => handleChordClick(e, part)}
+                  className={`text-yellow-400 font-bold active:bg-yellow-400/20 rounded px-0.5 transition-colors ${popover?.name === part ? 'bg-yellow-400/30 ring-1 ring-yellow-400/50' : ''}`}
+                >
+                  {part}
+                </button>
+              );
             }
             return <span key={pi}>{part}</span>;
           })}
@@ -200,11 +244,15 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
 
       <div 
         ref={containerRef}
-        onClick={() => isChordPanelOpen && setIsChordPanelOpen(false)}
+        onClick={() => {
+          if (popover) setPopover(null);
+          if (isChordPanelOpen) setIsChordPanelOpen(false);
+        }}
         onScroll={() => { 
           if (containerRef.current) {
             preciseScrollTopRef.current = containerRef.current.scrollTop;
           }
+          if (popover) setPopover(null); // Закрываем при ручном скролле
         }}
         style={{ fontSize: `${fontSize}px` }}
         className="flex-1 overflow-y-auto px-4 py-8 mono-grid whitespace-pre-wrap break-words select-none"
@@ -216,6 +264,41 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         <div className="leading-[1.65] tracking-normal pb-32">{renderContent()}</div>
         <div className="h-[80vh]"></div>
       </div>
+
+      {/* Popover Diagram */}
+      {popover && (
+        <div 
+          className="fixed z-[200] animate-in zoom-in-95 fade-in duration-150 pointer-events-none"
+          style={{ 
+            left: `${popover.x}px`, 
+            top: `${popover.y - 10}px`, 
+            transform: 'translate(-50%, -100%)' 
+          }}
+        >
+          <div className="pointer-events-auto" onClick={nextVariation}>
+            {(() => {
+              const fingerings = getFingerings(popover.name);
+              const fingering = fingerings[popover.variation % fingerings.length];
+              if (!fingering) return null;
+              
+              return (
+                <div className="relative">
+                  <ChordDiagram fingering={fingering} />
+                  {fingerings.length > 1 && (
+                    <div className="absolute -bottom-1 left-0 right-0 flex justify-center gap-1">
+                      {fingerings.map((_, i) => (
+                        <div key={i} className={`w-1 h-1 rounded-full ${i === popover.variation ? 'bg-yellow-500' : 'bg-zinc-700'}`} />
+                      ))}
+                    </div>
+                  )}
+                  {/* Треугольник-указатель */}
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-zinc-900 shadow-xl"></div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-3xl border-t border-zinc-800 px-6 pb-[calc(15px+env(safe-area-inset-bottom))] pt-5 flex flex-col gap-4 z-[130]">
         <div className="space-y-3">

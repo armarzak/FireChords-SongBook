@@ -26,7 +26,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({ fingering }) => {
           <text x="2" y={marginY + 10} fill="#facc15" fontSize="8" fontWeight="bold">{position}fr</text>
         )}
 
-        {/* Верхний порожек (жирный, если 1 лад) */}
+        {/* Верхний порожек */}
         <line 
           x1={marginX} y1={marginY} 
           x2={marginX + 5 * stringSpacing} y2={marginY} 
@@ -82,8 +82,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({ fingering }) => {
         {strings.map((fret, i) => {
           if (typeof fret !== 'number' || fret === 0) return null;
           
-          const relativeFret = fret; // В нашем словаре fret уже относительный лад внутри 5-ладовой сетки? 
-          // Нет, в словаре абсолютный лад. Вычисляем относительный:
+          // Вычисляем относительный лад для отрисовки внутри сетки из 5 ладов
           const fretInGrid = fret - position + 1;
           
           if (fretInGrid < 1 || fretInGrid > 5) return null;
