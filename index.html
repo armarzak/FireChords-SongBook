@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Songbook">
+    <meta name="apple-touch-fullscreen" content="yes">
     <meta name="theme-color" content="#121212">
     
     <!-- App Icon -->
@@ -80,12 +81,11 @@
                 navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
                     .then(reg => {
                         console.log('SW registered');
-                        // Проверка обновлений
                         reg.onupdatefound = () => {
                             const installingWorker = reg.installing;
                             installingWorker.onstatechange = () => {
                                 if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    console.log('New content available; please refresh.');
+                                    console.log('New content available');
                                 }
                             };
                         };

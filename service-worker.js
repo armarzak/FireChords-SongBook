@@ -1,13 +1,15 @@
 
-const CACHE_NAME = 'songbook-v6.0';
+const CACHE_NAME = 'songbook-v7.1';
 
+// Основные файлы, необходимые для запуска приложения
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
+  '/index.tsx',
   '/manifest.json'
 ];
 
-// Ресурсы, которые мы кешируем "на лету"
+// Внешние домены, ресурсы с которых мы кэшируем для работы офлайн
 const EXTERNAL_URLS = [
   'cdn.tailwindcss.com',
   'esm.sh',
@@ -40,39 +42,41 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Игнорируем не-GET запросы
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // 1. Для навигации всегда возвращаем index.html, если нет сети
+  // Стратегия для навигации (HTML страница)
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
+      fetch(event.request).catch(() => {
+        return caches.match('/') || caches.match('/index.html');
+      })
     );
     return;
   }
 
-  // 2. Стратегия Cache-First для внешних библиотек и статики
+  // Стратегия: Сначала кэш, если нет - сеть + кэширование
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse;
 
       return fetch(event.request).then((networkResponse) => {
-        // Кешируем только успешные ответы
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && !EXTERNAL_URLS.some(d => url.hostname.includes(d))) {
-          return networkResponse;
-        }
+        // Кэшируем локальные ресурсы (модули .tsx, .ts) и разрешенные внешние библиотеки
+        const isLocal = url.origin === self.location.origin;
+        const isExternalAllowed = EXTERNAL_URLS.some(d => url.hostname.includes(d));
 
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
+        if (networkResponse && networkResponse.status === 200 && (isLocal || isExternalAllowed)) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
 
         return networkResponse;
       }).catch(() => {
-        // Если совсем беда, пытаемся найти хоть что-то в кеше
-        return caches.match(event.request);
+        // Офлайн-заглушка для изображений или других ресурсов, если нужно
+        return null;
       });
     })
   );
