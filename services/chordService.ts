@@ -7,19 +7,26 @@ const normalizationMap: { [key: string]: string } = {
 };
 
 /**
- * Улучшенный поиск аккордов.
- * Поддерживает как заглавные [A-G], так и строчные [a-g] буквы.
+ * Регулярное выражение для поиска аккордов.
+ * Оптимизировано для работы с бемолями и различными суффиксами.
  */
-export const chordRegex = /(?<=^|[\s\[])([A-Ga-g][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)(?=[\s\]]|$)/g;
-export const chordSplitRegex = /((?<=^|[\s\[])[A-Ga-g][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*(?=[\s\]]|$))/g;
+export const chordRegex = /([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/g;
+
+/**
+ * Регулярное выражение для разбивки строки на части (текст и аккорды).
+ * Использует захватывающие скобки, чтобы аккорды сохранялись в массиве после split.
+ */
+export const chordSplitRegex = /((?:^|[\s\[])(?:[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*))/g;
 
 export const transposeChord = (chord: string, semitones: number): string => {
+  // Извлекаем корень и суффикс
   const match = chord.match(/^([A-Ga-g][#b]?)(.*)$/);
   if (!match) return chord;
 
   let baseNote = match[1].charAt(0).toUpperCase() + match[1].slice(1);
   const suffix = match[2];
 
+  // Приводим к диезной форме для работы со шкалой
   if (normalizationMap[baseNote]) {
     baseNote = normalizationMap[baseNote];
   }
@@ -35,5 +42,15 @@ export const transposeChord = (chord: string, semitones: number): string => {
 
 export const transposeText = (text: string, semitones: number): string => {
   if (semitones === 0) return text;
-  return text.replace(chordRegex, (match) => transposeChord(match, semitones));
+  
+  // Транспонируем только те части, которые похожи на аккорды
+  return text.split(chordSplitRegex).map(part => {
+    const chordMatch = part.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
+    if (chordMatch) {
+      const fullChord = chordMatch[0];
+      const transposed = transposeChord(fullChord, semitones);
+      return part.replace(fullChord, transposed);
+    }
+    return part;
+  }).join('');
 };

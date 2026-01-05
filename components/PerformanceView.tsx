@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Song } from '../types';
-import { transposeText, chordSplitRegex } from '../services/chordService';
+import { transposeText, chordSplitRegex, transposeChord } from '../services/chordService';
 import { ChordPanel } from './ChordPanel';
 import { ChordDiagram } from './ChordDiagram';
 import { getFingerings } from '../services/chordLibrary';
@@ -32,47 +32,34 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
 
   const isDark = theme === 'dark';
 
-  // Auto-calculate font size to fit width
   useLayoutEffect(() => {
     if (!containerRef.current) return;
-    
     const lines = song.content.split('\n');
-    let maxChars = 10; // min baseline
+    let maxChars = 10;
     lines.forEach(line => {
       if (line.length > maxChars) maxChars = line.length;
     });
-
-    const padding = 40; // Total horizontal padding (px)
+    const padding = 40;
     const availableWidth = containerRef.current.clientWidth - padding;
-    
-    // Heuristic: for monospaced fonts, character width is roughly 0.6 of font size
     let calculatedSize = Math.floor(availableWidth / (maxChars * 0.61));
-    
-    // Clamp between reasonable limits
     calculatedSize = Math.max(8, Math.min(calculatedSize, 24));
-    
     setFontSize(calculatedSize);
   }, [song.content]);
 
   const scrollStep = () => {
     if (!isScrolling || !containerRef.current) return;
-    
     const element = containerRef.current;
     const currentActualScroll = element.scrollTop;
-
     if (Math.abs(currentActualScroll - lastAppliedScrollRef.current) > 1) {
       virtualScrollRef.current = currentActualScroll;
     }
-
     virtualScrollRef.current += (scrollSpeed * 0.6);
     element.scrollTop = virtualScrollRef.current;
     lastAppliedScrollRef.current = element.scrollTop;
-
     if (element.scrollTop + element.clientHeight >= element.scrollHeight - 5) {
       setIsScrolling(false);
       return;
     }
-
     requestRef.current = requestAnimationFrame(scrollStep);
   };
 
@@ -98,22 +85,31 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       return (
         <div key={i} className={`min-h-[1.2em] leading-tight whitespace-pre-wrap break-words ${isSection ? 'text-blue-500 font-black mt-6 mb-2' : ''}`}>
           {parts.map((part, pi) => {
-            const isChord = part.match(/^[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*$/);
-            if (isChord) {
+            // FIX: Using type guard to ensure 'part' is a string before processing.
+            // This fixes "Argument of type 'unknown' is not assignable to parameter of type 'string'" errors.
+            if (typeof part !== 'string') return null;
+            
+            const p = part;
+            const chordMatch = p.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
+            if (chordMatch && p.length < 15) { // Protect against false positives in long strings
+              const chordName = chordMatch[0];
               return (
-                <button 
-                  key={pi} 
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setPopover(popover?.name === part ? null : { name: part, x: rect.left + rect.width / 2, y: rect.top, variation: 0 });
-                  }}
-                  className={`font-bold px-0.5 rounded transition-colors ${isDark ? 'text-yellow-400' : 'text-blue-600'} ${popover?.name === part ? (isDark ? 'bg-yellow-400/20 ring-1 ring-yellow-400/50' : 'bg-blue-600/10 ring-1 ring-blue-600/50') : ''}`}
-                >
-                  {part}
-                </button>
+                <React.Fragment key={pi}>
+                  {p.split(chordName)[0]}
+                  <button 
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setPopover(popover?.name === chordName ? null : { name: chordName, x: rect.left + rect.width / 2, y: rect.top, variation: 0 });
+                    }}
+                    className={`font-bold px-0.5 rounded transition-colors ${isDark ? 'text-yellow-400' : 'text-blue-600'} ${popover?.name === chordName ? (isDark ? 'bg-yellow-400/20 ring-1 ring-yellow-400/50' : 'bg-blue-600/10 ring-1 ring-blue-600/50') : ''}`}
+                  >
+                    {chordName}
+                  </button>
+                  {p.split(chordName)[1]}
+                </React.Fragment>
               );
             }
-            return <span key={pi} className={isDark ? 'text-zinc-200' : 'text-zinc-800'}>{part}</span>;
+            return <span key={pi} className={isDark ? 'text-zinc-200' : 'text-zinc-800'}>{p}</span>;
           })}
         </div>
       );
@@ -121,12 +117,11 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
   };
 
   const detectedChords = Array.from(new Set(
-    (song.content.match(/[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*/g) || []) as string[]
+    (song.content.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/g) || [])
   )).map(c => transposeChord(c, transpose));
 
   return (
     <div className={`fixed inset-0 z-[100] flex flex-col overscroll-none transition-colors duration-300 ${isDark ? 'bg-black text-white' : 'bg-white text-zinc-900'}`}>
-      {/* Header */}
       <div className={`pt-[env(safe-area-inset-top)] border-b px-4 flex justify-between items-center h-20 shrink-0 z-[140] ${isDark ? 'bg-zinc-900 border-white/5' : 'bg-zinc-100 border-zinc-200'}`}>
         <div className="flex items-center gap-1">
           <button onClick={onClose} className={`px-2 py-2 text-sm font-bold active:scale-95 transition-colors ${isDark ? 'text-zinc-500 active:text-white' : 'text-zinc-400 active:text-zinc-900'}`}>Back</button>
@@ -199,10 +194,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         </div>
       )}
 
-      {/* Footer Controls with Slider */}
       <div className={`fixed bottom-0 left-0 right-0 border-t px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 flex flex-col gap-4 z-[130] ${isDark ? 'bg-zinc-900/95 backdrop-blur-3xl border-white/5' : 'bg-zinc-50/95 backdrop-blur-3xl border-zinc-200'}`}>
-        
-        {/* Speed Slider */}
         <div className="flex flex-col gap-1.5 px-1">
           <div className="flex justify-between items-center">
             <span className={`text-[8px] font-black uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>Scroll Speed</span>
@@ -246,26 +238,3 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     </div>
   );
 };
-
-function transposeChord(chord: string, semitones: number): string {
-  const chromaticScale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const normalizationMap: { [key: string]: string } = {
-    'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#',
-    'Cb': 'B', 'Fb': 'E', 'E#': 'F', 'B#': 'C'
-  };
-
-  const match = chord.match(/^([A-G][#b]?)(.*)$/);
-  if (!match) return chord;
-
-  let baseNote = match[1];
-  const suffix = match[2];
-
-  if (normalizationMap[baseNote]) baseNote = normalizationMap[baseNote];
-  const index = chromaticScale.indexOf(baseNote);
-  if (index === -1) return chord;
-
-  let newIndex = (index + semitones) % 12;
-  if (newIndex < 0) newIndex += 12;
-
-  return chromaticScale[newIndex] + suffix;
-}

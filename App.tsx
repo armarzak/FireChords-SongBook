@@ -99,19 +99,41 @@ const App: React.FC = () => {
         {state === AppState.TUNER && <Tuner theme={theme} />}
         
         {state === AppState.EDIT && (
-          <SongEditor song={currentSong} existingArtists={[]} onSave={async d => {
-            const id = currentSongId || 's-'+Date.now();
-            const news = currentSongId ? songs.map(s => s.id === id ? {...s, ...d} as Song : s) : [{id, title: d.title||'Untitled', artist: d.artist||'Unknown', content: d.content||'', transpose:0} as Song, ...songs];
-            setSongs(news);
-            await storageService.saveSongLocal(news.find(s=>s.id===id)!);
-            setState(AppState.LIST);
-          }} onCancel={() => setState(AppState.LIST)} onNotify={showToast} theme={theme} />
+          <SongEditor 
+            song={currentSong} 
+            existingArtists={[]} 
+            onSave={async d => {
+              const id = currentSongId || 's-'+Date.now();
+              const news = currentSongId ? songs.map(s => s.id === id ? {...s, ...d} as Song : s) : [{id, title: d.title||'Untitled', artist: d.artist||'Unknown', content: d.content||'', transpose:0} as Song, ...songs];
+              setSongs(news);
+              await storageService.saveSongLocal(news.find(s=>s.id===id)!);
+              setState(AppState.LIST);
+              showToast("Saved");
+            }} 
+            onDelete={async id => {
+              await storageService.deleteSongLocal(id);
+              setSongs(songs.filter(s => s.id !== id));
+              setState(AppState.LIST);
+              showToast("Removed");
+            }}
+            onCancel={() => setState(AppState.LIST)} 
+            onNotify={showToast} 
+            theme={theme} 
+          />
         )}
 
         {state === AppState.PERFORMANCE && currentSong && (
-          <PerformanceView song={currentSong} theme={theme} onClose={() => setState(AppState.LIST)} onEdit={() => setState(AppState.EDIT)} onUpdateTranspose={()=>{}} />
+          <PerformanceView song={currentSong} theme={theme} onClose={() => { setSharedSong(null); setState(AppState.LIST); }} onEdit={() => setState(AppState.EDIT)} onUpdateTranspose={()=>{}} />
         )}
       </div>
+
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[2000] animate-in slide-in-from-bottom-2">
+          <div className={`px-6 py-3 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl ${theme === 'dark' ? 'bg-white text-black' : 'bg-zinc-900 text-white'}`}>
+            {toast}
+          </div>
+        </div>
+      )}
 
       {![AppState.AUTH, AppState.EDIT, AppState.PERFORMANCE].includes(state) && (
         <div className={`h-[calc(68px+env(safe-area-inset-bottom))] ${navBgClass} backdrop-blur-2xl border-t flex items-center justify-around pb-[env(safe-area-inset-bottom)] z-[100]`}>
