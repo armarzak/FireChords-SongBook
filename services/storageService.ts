@@ -3,30 +3,29 @@ import { Song, User } from '../types';
 import Dexie, { type Table } from 'dexie';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// НОВЫЙ URL ВАШЕГО ПРОЕКТА
+// АКТУАЛЬНЫЙ URL ВАШЕГО ПРОЕКТА
 const SUPABASE_URL = 'https://nakmccxvygrotpdaplwh.supabase.co';
 
-// Ключ берется строго из окружения (API_KEY в Vercel или вашей среде)
+// Ключ берется из окружения. В песочнице или Vercel он должен быть в API_KEY.
 const SUPABASE_KEY = (typeof process !== 'undefined' && process.env?.API_KEY) ? process.env.API_KEY : ''; 
 
 let supabase: SupabaseClient | null = null;
 try {
   if (SUPABASE_KEY && SUPABASE_KEY.length > 10) {
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log("📡 Supabase client: Connecting to " + SUPABASE_URL);
+    console.log("📡 Supabase: Initializing connection to " + SUPABASE_URL);
   } else {
-    console.warn("⚠️ Supabase Key is missing. DB won't connect. Set API_KEY environment variable.");
+    console.warn("⚠️ Supabase: API_KEY is missing or invalid. Cloud features disabled.");
   }
 } catch (e) {
-  console.error("❌ Supabase critical init error:", e);
+  console.error("❌ Supabase: Critical initialization error:", e);
 }
 
-// Локальная база (Dexie) для надежности
+// Локальная база (Dexie)
 class SongbookDatabase extends Dexie {
   songs!: Table<Song>;
   constructor() {
     super('GuitarSongbookDB_v3');
-    // Fix for line 33: version() and stores() must be called within the constructor when using class inheritance in Dexie with TypeScript to ensure correct type resolution.
     this.version(1).stores({
       songs: 'id, title, artist, authorId, is_public'
     });
@@ -37,7 +36,6 @@ export const db = new SongbookDatabase();
 
 const USER_KEY = 'guitar_songbook_user';
 
-// Маппинг данных (Postgres -> Frontend)
 const mapFromDb = (s: any): Song => ({
   id: s.id,
   title: s.title,
@@ -52,7 +50,6 @@ const mapFromDb = (s: any): Song => ({
   is_public: s.is_public
 });
 
-// Маппинг данных (Frontend -> Postgres)
 const mapToDb = (s: Song, userId: string) => ({
   id: s.id,
   user_id: userId,
@@ -67,7 +64,7 @@ const mapToDb = (s: Song, userId: string) => ({
 });
 
 export const storageService = {
-  isCloudEnabled: () => !!supabase && !!SUPABASE_KEY,
+  isCloudEnabled: () => !!supabase && SUPABASE_KEY.length > 0,
 
   getUser: (): User | null => {
     const data = localStorage.getItem(USER_KEY);
@@ -101,8 +98,7 @@ export const storageService = {
     await db.songs.delete(id);
     const user = storageService.getUser();
     if (supabase && user) {
-        const { error } = await supabase.from('songs').delete().eq('id', id).eq('user_id', user.id);
-        if (error) console.error("Cloud delete error:", error.message);
+        await supabase.from('songs').delete().eq('id', id).eq('user_id', user.id);
     }
   },
 
@@ -112,7 +108,7 @@ export const storageService = {
       const payload = songs.map(s => mapToDb(s, user.id));
       const { error } = await supabase.from('songs').upsert(payload);
       if (error) {
-          console.error("❌ Supabase Sync Error (Check if 'songs' table exists):", error.message);
+          console.error("❌ Supabase Sync Error:", error.message, error.details);
           return false;
       }
       return true;
@@ -131,11 +127,12 @@ export const storageService = {
         .eq('user_id', user.id);
       
       if (error) {
-          console.error("❌ Supabase Fetch Error:", error.message);
+          console.error("❌ Supabase Restore Error:", error.message);
           return null;
       }
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
+      console.error("❌ Restore exception:", e);
       return null;
     }
   },
@@ -150,10 +147,7 @@ export const storageService = {
         .order('created_at', { ascending: false })
         .limit(50);
       
-      if (error) {
-        console.error("❌ Board fetch error:", error.message);
-        return [];
-      }
+      if (error) return [];
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
       return [];
@@ -165,7 +159,6 @@ export const storageService = {
     try {
       const payload = { ...mapToDb(song, user.id), is_public: true };
       const { error } = await supabase.from('songs').upsert(payload);
-      if (error) console.error("❌ Publish error:", error.message);
       return !error;
     } catch (e) {
       return false;

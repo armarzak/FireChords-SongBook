@@ -29,7 +29,6 @@ const App: React.FC = () => {
       setState(AppState.AUTH);
     }
     
-    // Блокировка скролла для iOS Safari
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';
@@ -44,34 +43,31 @@ const App: React.FC = () => {
   const initApp = async (u: User) => {
     setIsSyncing(true);
     try {
-      // 1. Сначала локальное хранилище
       const local = await storageService.getSongsLocal();
       if (local.length > 0) setSongs(local);
       
-      // 2. Проверка облака
       if (storageService.isCloudEnabled()) {
         const cloud = await storageService.restoreLibraryFromCloud(u);
-        if (cloud) {
-          setSongs(cloud);
-          await storageService.saveSongsBulk(cloud);
+        // Если вернулся массив (даже пустой), значит соединение с таблицей есть
+        if (cloud !== null) {
           setIsOnline(true);
-          console.log("✅ Cloud connection established");
+          if (cloud.length > 0) {
+            setSongs(cloud);
+            await storageService.saveSongsBulk(cloud);
+          }
         } else {
           setIsOnline(false);
-          console.warn("⚠️ Cloud enabled but fetch failed");
         }
-      } else {
-        setIsOnline(false);
-        console.warn("⚠️ Supabase is not configured");
       }
 
-      if (songs.length === 0 && local.length === 0) {
+      // Если совсем ничего нет - ставим дефолт
+      const currentLocal = await storageService.getSongsLocal();
+      if (currentLocal.length === 0) {
           const defaults = storageService.getDefaultSongs();
           setSongs(defaults);
           await storageService.saveSongsBulk(defaults);
       }
     } catch (e) {
-      console.error("App init failed", e);
       setIsOnline(false);
     } finally {
       setIsSyncing(false);
@@ -93,14 +89,12 @@ const App: React.FC = () => {
 
   const handleSync = async (updatedSongs: Song[]) => {
     if (!user || !storageService.isCloudEnabled()) {
-        showToast("Cloud connection missing");
-        return;
+        return false;
     }
     setIsSyncing(true);
     const success = await storageService.syncLibraryWithCloud(updatedSongs, user);
     setIsOnline(success);
     setIsSyncing(false);
-    showToast(success ? "Synced with Supabase" : "Sync Failed: Check Tables");
     return success;
   };
 
@@ -110,7 +104,8 @@ const App: React.FC = () => {
     
     if (currentSongId) {
       updatedSongs = songs.map(s => s.id === currentSongId ? { ...s, ...songData } as Song : s);
-      await storageService.saveSongLocal(updatedSongs.find(s => s.id === currentSongId)!);
+      const target = updatedSongs.find(s => s.id === currentSongId);
+      if (target) await storageService.saveSongLocal(target);
     } else {
       const newSong: Song = {
         id: songId,
@@ -121,14 +116,16 @@ const App: React.FC = () => {
         capo: songData.capo || 0,
         tuning: songData.tuning || 'Standard',
         authorName: user?.stageName || 'Anonymous',
-        authorId: user?.id
+        authorId: user?.id,
+        is_public: false
       };
       updatedSongs = [newSong, ...songs];
       await storageService.saveSongLocal(newSong);
     }
 
     setSongs(updatedSongs);
-    handleSync(updatedSongs);
+    const synced = await handleSync(updatedSongs);
+    showToast(synced ? "Saved & Synced" : "Saved Locally");
     setState(AppState.LIST);
   };
 
@@ -146,8 +143,15 @@ const App: React.FC = () => {
             songs={songs} 
             isSyncing={isSyncing}
             isOnline={isOnline}
-            onSyncManual={() => handleSync(songs)}
-            onSelect={(s) => { setCurrentSongId(s.id); setState(AppState.PERFORMANCE); }} 
+            onSyncManual={async () => {
+              const ok = await handleSync(songs);
+              showToast(ok ? "Cloud Sync OK" : "Sync Failed: check Console");
+            }}
+            onSelect={(s) => { 
+                setSharedSong(null);
+                setCurrentSongId(s.id); 
+                setState(AppState.PERFORMANCE); 
+            }} 
             onAdd={() => { setCurrentSongId(null); setState(AppState.EDIT); }}
             onExportSuccess={showToast}
           />
@@ -156,11 +160,12 @@ const App: React.FC = () => {
         {state === AppState.FORUM && (
           <CommunityFeed 
             onImport={async (s) => {
-              const newSongs = [s, ...songs];
+              const newSong = { ...s, id: 'pub-' + s.id, is_public: false };
+              const newSongs = [newSong, ...songs];
               setSongs(newSongs);
-              await storageService.saveSongLocal(s);
+              await storageService.saveSongLocal(newSong);
               handleSync(newSongs);
-              showToast("Imported to Cloud");
+              showToast("Added to Library");
             }} 
             onView={(song) => { setSharedSong(song); setState(AppState.PERFORMANCE); }} 
           />
@@ -185,12 +190,19 @@ const App: React.FC = () => {
         {state === AppState.PERFORMANCE && currentSong && (
           <PerformanceView 
             song={currentSong} 
-            onClose={() => setState(AppState.LIST)}
+            onClose={() => {
+                setSharedSong(null);
+                setState(AppState.LIST);
+            }}
             onEdit={() => setState(AppState.EDIT)}
             onUpdateTranspose={async (id, tr) => {
                 const updated = songs.map(s => s.id === id ? { ...s, transpose: tr } : s);
                 setSongs(updated);
-                await storageService.saveSongLocal(updated.find(s => s.id === id)!);
+                const target = updated.find(s => s.id === id);
+                if (target) {
+                    await storageService.saveSongLocal(target);
+                    handleSync(updated);
+                }
             }}
           />
         )}
