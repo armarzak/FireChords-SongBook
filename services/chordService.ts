@@ -8,17 +8,16 @@ const normalizationMap: { [key: string]: string } = {
 
 /**
  * Улучшенный поиск аккордов.
- * Ищет последовательности типа F#m, C#maj7, Bb, не обрезая символы # и b.
+ * Поддерживает как заглавные [A-G], так и строчные [a-g] буквы.
  */
-export const chordRegex = /(?<=^|[\s\[])([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)(?=[\s\]]|$)/g;
-export const chordSplitRegex = /((?<=^|[\s\[])[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*(?=[\s\]]|$))/g;
+export const chordRegex = /(?<=^|[\s\[])([A-Ga-g][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)(?=[\s\]]|$)/g;
+export const chordSplitRegex = /((?<=^|[\s\[])[A-Ga-g][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*(?=[\s\]]|$))/g;
 
 export const transposeChord = (chord: string, semitones: number): string => {
-  // Находим корень аккорда (буква + опционально # или b)
-  const match = chord.match(/^([A-G][#b]?)(.*)$/);
+  const match = chord.match(/^([A-Ga-g][#b]?)(.*)$/);
   if (!match) return chord;
 
-  let baseNote = match[1];
+  let baseNote = match[1].charAt(0).toUpperCase() + match[1].slice(1);
   const suffix = match[2];
 
   if (normalizationMap[baseNote]) {

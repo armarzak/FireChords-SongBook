@@ -24,7 +24,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({ fingering, theme = '
 
   return (
     <div className={`flex flex-col items-center border p-3 rounded-2xl w-32 shadow-xl ${isDark ? 'bg-zinc-900 border-white/10' : 'bg-white border-zinc-200'}`}>
-      <span className={`text-[10px] font-black mb-2 uppercase tracking-tighter truncate w-full text-center ${isDark ? 'text-yellow-500' : 'text-blue-600'}`}>
+      <span className={`text-[12px] font-black mb-2 tracking-tighter truncate w-full text-center ${isDark ? 'text-yellow-500' : 'text-blue-600'}`}>
         {name}
       </span>
       

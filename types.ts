@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   stageName: string;
@@ -15,7 +16,6 @@ export interface Song {
   authorId?: string;
   createdAt?: string;
   likes?: number;
-  // Indicates if the song is published to the public forum
   is_public?: boolean;
 }
 
@@ -27,7 +27,7 @@ export enum AppState {
   TUNER = 'TUNER',
   FORUM = 'FORUM',
   AUTH = 'AUTH',
-  PROFILE = 'PROFILE'
+  EXPLORER = 'EXPLORER' // Новая вкладка для интерактивного грифа
 }
 
 export enum ViewMode {
