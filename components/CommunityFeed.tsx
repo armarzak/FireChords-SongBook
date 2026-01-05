@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Song } from '../types';
 import { storageService } from '../services/storageService';
@@ -43,7 +44,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
     <div className={`flex flex-col h-full pt-[env(safe-area-inset-top)] ${isDark ? 'bg-[#121212]' : 'bg-[#f8f9fa]'}`}>
       <div className={`px-6 py-6 flex justify-between items-end border-b backdrop-blur-xl ${isDark ? 'border-white/5 bg-zinc-900/50' : 'border-zinc-200 bg-white/80'}`}>
         <div>
-          <h1 className={`text-4xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-zinc-900'}`}>Board</h1>
+          <h1 className={`text-4xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-zinc-900'}`}>Common songs</h1>
           <p className={`text-xs font-black uppercase tracking-[0.2em] mt-1 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Global Archive</p>
         </div>
         <button 

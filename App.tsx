@@ -156,14 +156,14 @@ const App: React.FC = () => {
   // Функция для выбора иконки в зависимости от ширины экрана с более детальными путями SVG
   const getSongsIcon = () => {
     if (windowWidth > 1024) {
-      // Laptop Icon (Screen + Keyboard base)
-      return "M2 16h20M2 16l2 3h16l2-3M4 5h16v11H4z";
+      // Laptop Icon (Distinct MacBook Style)
+      return "M20 4H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 6h16v10H4V6z";
     } else if (windowWidth >= 640) {
       // Tablet Icon
-      return "M7 20h10M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z";
+      return "M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h12v16H6V4z";
     } else {
       // Mobile Icon
-      return "M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z";
+      return "M17 2H7a2 2 0 00-2 2v16a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2zM7 4h10v14H7V4z";
     }
   };
 
@@ -260,7 +260,7 @@ const App: React.FC = () => {
         <div className={`h-[calc(64px+env(safe-area-inset-bottom))] ${navBgClass} backdrop-blur-2xl border-t flex items-center justify-around pb-[env(safe-area-inset-bottom)] z-[100]`}>
           {[
             { id: AppState.LIST, label: 'Songs', icon: getSongsIcon() },
-            { id: AppState.FORUM, label: 'Board', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
+            { id: AppState.FORUM, label: 'Common', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
             { id: AppState.DICTIONARY, label: 'Theory', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
             { id: AppState.TUNER, label: 'Tuner', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' }
           ].map(tab => (

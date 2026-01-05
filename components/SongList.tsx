@@ -52,11 +52,11 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
       <div className={`px-6 pt-6 pb-2 space-y-5 ${isDark ? 'bg-[#121212]' : 'bg-[#f8f9fa]'}`}>
         <div className="flex justify-between items-start">
           <div className="flex flex-col flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
                 <svg className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} fill="currentColor" viewBox="0 0 24 24">
                    <path d="M12,2A3,3 0 0,0 9,5V10C9,11.23 9.75,12.28 10.83,12.7L8,20.25V22H16V20.25L13.17,12.7C14.25,12.28 15,11.23 15,10V5A3,3 0 0,0 12,2M12,4A1,1 0 0,1 13,5V10A1,1 0 0,1 12,11A1,1 0 0,1 11,10V5A1,1 0 0,1 12,4M11.5,14H12.5L14.41,19.09L13.5,19.41L12.5,16.73V20H11.5V16.73L10.5,19.41L9.59,19.09L11.5,14Z" />
                 </svg>
-                <h1 className={`text-4xl font-black tracking-tight leading-none ${isDark ? 'text-white' : 'text-zinc-900'}`}>Songs <span className="block text-xl opacity-60">on device</span></h1>
+                <h1 className={`text-4xl font-black tracking-tight leading-none ${isDark ? 'text-white' : 'text-zinc-900'}`}>YOUR <span className="block text-xl opacity-60 uppercase">SONGS</span></h1>
             </div>
             <div className="mt-4 flex items-center gap-2">
                 <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${isOnline ? 'bg-blue-500/10 border-blue-500/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
