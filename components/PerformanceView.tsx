@@ -46,8 +46,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     const availableWidth = containerRef.current.clientWidth - padding;
     
     // Heuristic: for monospaced fonts, character width is roughly 0.6 of font size
-    // We want: maxChars * (fontSize * 0.6) = availableWidth
-    // So: fontSize = availableWidth / (maxChars * 0.6)
     let calculatedSize = Math.floor(availableWidth / (maxChars * 0.61));
     
     // Clamp between reasonable limits
@@ -138,7 +136,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         <div className="flex flex-col items-center flex-1 px-2">
           <h2 className={`text-[9px] font-black truncate max-w-[100px] mb-1 opacity-50 uppercase tracking-widest text-center ${isDark ? 'text-white' : 'text-zinc-900'}`}>{song.title}</h2>
           <div className="flex gap-3 items-center">
-             {/* Font Control */}
              <div className="flex flex-col items-center gap-0.5">
                <span className="text-[7px] font-black opacity-30 uppercase tracking-tighter">Font</span>
                <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`}>
@@ -147,7 +144,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
                  <button onClick={() => setFontSize(s => Math.min(s+1, 40))} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">A+</button>
                </div>
              </div>
-             {/* Transpose Control */}
              <div className="flex flex-col items-center gap-0.5">
                <span className="text-[7px] font-black opacity-30 uppercase tracking-tighter">Tr</span>
                <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`}>
@@ -162,7 +158,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         <button onClick={() => setIsChordPanelOpen(!isChordPanelOpen)} className={`font-black text-[9px] px-3 py-2 rounded-full uppercase tracking-wider active:scale-95 transition-all ${isDark ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'}`}>Chords</button>
       </div>
 
-      {/* Main Content Area */}
       <div 
         ref={containerRef}
         onClick={() => setPopover(null)}
@@ -180,7 +175,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         </div>
       </div>
 
-      {/* Chord Popover */}
       {popover && (
         <div className="fixed z-[200] animate-in zoom-in-95 pointer-events-none" style={{ left: `${popover.x}px`, top: `${popover.y - 10}px`, transform: 'translate(-50%, -100%)' }}>
           <div className="pointer-events-auto" onClick={(e) => {
@@ -203,8 +197,26 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         </div>
       )}
 
-      {/* Footer Controls */}
-      <div className={`fixed bottom-0 left-0 right-0 border-t px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 flex flex-col gap-3 z-[130] ${isDark ? 'bg-zinc-900/95 backdrop-blur-3xl border-white/5' : 'bg-zinc-50/95 backdrop-blur-3xl border-zinc-200'}`}>
+      {/* Footer Controls with Slider */}
+      <div className={`fixed bottom-0 left-0 right-0 border-t px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 flex flex-col gap-4 z-[130] ${isDark ? 'bg-zinc-900/95 backdrop-blur-3xl border-white/5' : 'bg-zinc-50/95 backdrop-blur-3xl border-zinc-200'}`}>
+        
+        {/* Speed Slider */}
+        <div className="flex flex-col gap-1.5 px-1">
+          <div className="flex justify-between items-center">
+            <span className={`text-[8px] font-black uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>Scroll Speed</span>
+            <span className={`text-[10px] font-black tabular-nums ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{scrollSpeed.toFixed(1)}x</span>
+          </div>
+          <input 
+            type="range" 
+            min="0.1" 
+            max="4.0" 
+            step="0.1"
+            value={scrollSpeed}
+            onChange={(e) => setScrollSpeed(parseFloat(e.target.value))}
+            className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-blue-500 ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`}
+          />
+        </div>
+
         <div className="flex items-center gap-3">
            <div className={`flex-1 flex p-1 rounded-xl border ${isDark ? 'bg-black/40 border-white/5' : 'bg-white border-zinc-200 shadow-sm'}`}>
               {[0.5, 1, 2].map(speed => (
