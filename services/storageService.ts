@@ -137,28 +137,29 @@ export const storageService = {
     }
   },
 
-  publishToForum: async (song: Song, user: User): Promise<boolean> => {
-    if (!supabase) return false;
+  publishToForum: async (song: Song, user: User): Promise<{success: boolean, error?: string}> => {
+    if (!supabase) return { success: false, error: 'Supabase not initialized' };
     try {
-      // Гарантируем, что песня публичная и имеет автора
+      // Для доски создаем уникальный ID, чтобы избежать конфликтов при повторной публикации
       const publishedSong = { 
         ...song, 
+        id: song.id.startsWith('pub-') ? song.id : `pub-${song.id}-${Date.now()}`,
         is_public: true, 
         authorName: user.stageName,
         authorId: user.id 
       };
       const payload = mapToDb(publishedSong, user.id);
       
-      const { error } = await supabase.from('songs').upsert(payload);
+      const { error } = await supabase.from('songs').insert(payload);
       
       if (error) {
         console.error("Board Publish Error:", error);
-        return false;
+        return { success: false, error: error.message };
       }
-      return true;
-    } catch (e) {
+      return { success: true };
+    } catch (e: any) {
       console.error("Board Publish Exception:", e);
-      return false;
+      return { success: false, error: e.message || 'Unknown network error' };
     }
   },
 

@@ -46,14 +46,17 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
     };
     
     try {
-      const success = await storageService.publishToForum(songData, user);
-      if (success) {
+      const result = await storageService.publishToForum(songData, user);
+      if (result.success) {
         onNotify("Live on Board! 🚀");
       } else {
-        onNotify("Publish failed. Check console.");
+        // Выводим более понятную ошибку для пользователя
+        const errorMsg = result.error?.includes('409') ? "Already on board" : "Sync Error";
+        onNotify(errorMsg);
+        console.error("Publish details:", result.error);
       }
     } catch (e) {
-        onNotify("Connection error");
+        onNotify("Network unreachable");
     } finally {
       setIsPublishing(false);
     }
@@ -106,7 +109,7 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
             className={`w-full py-5 rounded-3xl font-black text-xs flex items-center justify-center gap-3 transition-all uppercase tracking-[0.2em] shadow-2xl ${isPublishing ? 'bg-zinc-800 text-zinc-600' : (isDark ? 'bg-white text-black active:scale-[0.98]' : 'bg-blue-600 text-white active:scale-[0.98] shadow-blue-500/20')}`}
           >
             {isPublishing ? (
-              <><div className={`w-4 h-4 border-2 rounded-full animate-spin ${isDark ? 'border-zinc-600 border-t-zinc-400' : 'border-white/30 border-t-white'}`}></div> Syncing...</>
+              <><div className={`w-4 h-4 border-2 rounded-full animate-spin ${isDark ? 'border-zinc-600 border-t-zinc-400' : 'border-white/30 border-t-white'}`}></div> Publishing...</>
             ) : 'Publish to Board'}
           </button>
 
