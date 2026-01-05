@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Song, User } from '../types';
 import { storageService } from '../services/storageService';
@@ -17,8 +16,6 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
   const [title, setTitle] = useState(song?.title || '');
   const [artist, setArtist] = useState(song?.artist || '');
   const [content, setContent] = useState(song?.content || '');
-  const [capo, setCapo] = useState(song?.capo || 0);
-  const [tuning, setTuning] = useState(song?.tuning || 'Standard');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   
@@ -42,8 +39,6 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
         title: title.trim(),
         artist: artist.trim() || 'Various',
         content,
-        capo,
-        tuning,
         transpose: 0
     };
     
@@ -66,7 +61,7 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
       <div className={`flex justify-between items-center px-4 py-4 border-b backdrop-blur-md ${isDark ? 'border-white/5 bg-zinc-900/80' : 'border-zinc-200 bg-white/80'}`}>
         <button onClick={onCancel} className={`font-bold text-sm px-4 py-2 active:text-blue-500 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Cancel</button>
         <h2 className={`text-xs font-black uppercase tracking-[0.3em] ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Editor</h2>
-        <button onClick={() => onSave({ title, artist, content, capo, tuning })} className="text-blue-500 font-black text-sm px-4 py-2 active:scale-95">Save</button>
+        <button onClick={() => onSave({ title, artist, content })} className="text-blue-500 font-black text-sm px-4 py-2 active:scale-95">Save</button>
       </div>
 
       <div className={`flex-1 flex flex-col space-y-0 overflow-y-auto relative ${isDark ? 'bg-black' : 'bg-white'}`}>
@@ -84,19 +79,6 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
             value={artist}
             onChange={(e) => setArtist(e.target.value)}
           />
-        </div>
-
-        <div className={`flex items-center px-6 py-4 border-b ${isDark ? 'bg-[#1c1c1e] border-white/5' : 'bg-zinc-50 border-zinc-100'}`}>
-          <div className="flex items-center gap-6">
-             <div className="flex items-center gap-3">
-                <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>Capo:</span>
-                <input type="number" className={`w-12 rounded-lg px-2 py-1.5 text-xs font-black text-blue-400 text-center border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`} value={capo} onChange={(e) => setCapo(parseInt(e.target.value) || 0)} />
-             </div>
-             <div className="flex items-center gap-3">
-                <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>Tune:</span>
-                <input className={`w-24 rounded-lg px-3 py-1.5 text-xs font-black text-blue-400 border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`} value={tuning} onChange={(e) => setTuning(e.target.value)} />
-             </div>
-          </div>
         </div>
 
         <textarea 

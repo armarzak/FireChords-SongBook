@@ -19,11 +19,15 @@ const App: React.FC = () => {
   const [sharedSong, setSharedSong] = useState<Song | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark') || 'dark';
   });
 
   useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    
     const currentUser = storageService.getUser();
     if (currentUser) {
       setUser(currentUser);
@@ -38,6 +42,7 @@ const App: React.FC = () => {
     document.body.style.height = '100%';
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       document.body.style.overflow = '';
       document.body.style.position = '';
     };
@@ -127,8 +132,6 @@ const App: React.FC = () => {
         artist: songData.artist || 'Unknown',
         content: songData.content || '',
         transpose: 0,
-        capo: songData.capo || 0,
-        tuning: songData.tuning || 'Standard',
         authorName: user?.stageName || 'Anonymous',
         authorId: user?.id,
         is_public: false
@@ -149,6 +152,20 @@ const App: React.FC = () => {
   const navBgClass = theme === 'light' ? 'bg-white/80 border-zinc-200' : 'bg-zinc-900/95 border-white/5';
   const tabActiveColor = 'text-blue-500';
   const tabInactiveColor = theme === 'light' ? 'text-zinc-400' : 'text-zinc-500';
+
+  // Функция для выбора иконки в зависимости от ширины экрана с более детальными путями SVG
+  const getSongsIcon = () => {
+    if (windowWidth > 1024) {
+      // Laptop Icon (Screen + Keyboard base)
+      return "M2 16h20M2 16l2 3h16l2-3M4 5h16v11H4z";
+    } else if (windowWidth >= 640) {
+      // Tablet Icon
+      return "M7 20h10M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z";
+    } else {
+      // Mobile Icon
+      return "M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z";
+    }
+  };
 
   return (
     <div className={`h-full w-full ${bgClass} select-none flex flex-col fixed inset-0 font-sans transition-colors duration-300`}>
@@ -242,7 +259,7 @@ const App: React.FC = () => {
       {![AppState.AUTH, AppState.EDIT, AppState.PERFORMANCE].includes(state) && (
         <div className={`h-[calc(64px+env(safe-area-inset-bottom))] ${navBgClass} backdrop-blur-2xl border-t flex items-center justify-around pb-[env(safe-area-inset-bottom)] z-[100]`}>
           {[
-            { id: AppState.LIST, label: 'Songs', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5S19.832 5.477 21 6.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
+            { id: AppState.LIST, label: 'Songs', icon: getSongsIcon() },
             { id: AppState.FORUM, label: 'Board', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
             { id: AppState.DICTIONARY, label: 'Theory', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
             { id: AppState.TUNER, label: 'Tuner', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' }

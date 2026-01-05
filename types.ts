@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   stageName: string;
@@ -14,8 +13,6 @@ export interface Song {
   transpose: number;
   authorName?: string;
   authorId?: string;
-  capo?: number;
-  tuning?: string;
   createdAt?: string;
   likes?: number;
   // Indicates if the song is published to the public forum

@@ -1,4 +1,3 @@
-
 import { Song, User } from '../types';
 import { Dexie, type Table } from 'dexie';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -44,8 +43,6 @@ const mapFromDb = (s: any): Song => ({
   artist: s.artist,
   content: s.content,
   transpose: s.transpose || 0,
-  capo: s.capo || 0,
-  tuning: s.tuning || 'Standard',
   authorName: s.author_name,
   authorId: s.user_id,
   createdAt: s.created_at,
@@ -59,8 +56,6 @@ const mapToDb = (s: Song, userId: string) => ({
   artist: s.artist || 'Unknown',
   content: s.content || '',
   transpose: s.transpose || 0,
-  capo: s.capo || 0,
-  tuning: s.tuning || 'Standard',
   author_name: s.authorName || 'Anonymous',
   is_public: !!s.is_public
 });
@@ -109,23 +104,15 @@ export const storageService = {
     
     try {
       const payload = songs.map(s => mapToDb(s, user.id));
-      // Пытаемся сохранить данные. Если таблицы нет или колонки не совпадают - будет ошибка.
-      const { error, status, statusText } = await supabase.from('songs').upsert(payload);
+      const { error } = await supabase.from('songs').upsert(payload);
       
       if (error) {
-          const detail = `${error.message} (Code: ${error.code}). Details: ${error.details}`;
-          console.group("❌ Supabase Sync Failed");
-          console.error("Message:", error.message);
-          console.error("Code:", error.code);
-          console.error("Details:", error.details);
-          console.error("Hint:", error.hint);
-          console.groupEnd();
+          const detail = `${error.message} (Code: ${error.code})`;
           return { success: false, error: detail };
       }
       
       return { success: true };
     } catch (e: any) {
-      console.error("❌ Sync exception:", e);
       return { success: false, error: e.message };
     }
   },
@@ -138,10 +125,7 @@ export const storageService = {
         .select('*')
         .eq('user_id', user.id);
       
-      if (error) {
-          console.error("❌ Supabase Restore Error:", error.message);
-          return null;
-      }
+      if (error) return null;
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
       return null;
@@ -169,7 +153,6 @@ export const storageService = {
     try {
       const payload = { ...mapToDb(song, user.id), is_public: true };
       const { error } = await supabase.from('songs').upsert(payload);
-      if (error) console.error("❌ Publish Error:", error.message);
       return !error;
     } catch (e) {
       return false;
@@ -197,8 +180,6 @@ export const storageService = {
       artist: 'John Lennon',
       transpose: 0,
       content: `[Intro]\nC  Cmaj7  F\n\n[Verse]\nC            Cmaj7    F\nImagine there's no heaven\nC            Cmaj7    F\nIt's easy if you try`,
-      capo: 0,
-      tuning: 'Standard',
       authorName: 'System'
     }
   ]

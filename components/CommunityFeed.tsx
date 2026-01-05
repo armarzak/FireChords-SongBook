@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Song } from '../types';
 import { storageService } from '../services/storageService';
@@ -81,15 +80,10 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
                   <h3 className={`text-xl font-black leading-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>{song.title}</h3>
                   <p className="text-blue-500 font-black text-[10px] uppercase tracking-widest mt-1">{song.artist}</p>
                 </div>
-                {song.capo && (
-                   <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${isDark ? 'bg-zinc-800 text-zinc-500' : 'bg-zinc-100 text-zinc-400'}`}>Capo {song.capo}</span>
-                )}
               </div>
               
               <div className="flex items-center gap-2 mt-4">
                 <span className={`text-[10px] font-black uppercase tracking-tighter ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>By {song.authorName || 'Anon'}</span>
-                <span className={`w-1 h-1 rounded-full ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`}></span>
-                <span className={`text-[10px] font-black uppercase tracking-tighter ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>{song.tuning || 'Standard'}</span>
               </div>
 
               <div className={`flex items-center justify-between mt-6 pt-4 border-t ${isDark ? 'border-white/5' : 'border-zinc-100'}`}>
