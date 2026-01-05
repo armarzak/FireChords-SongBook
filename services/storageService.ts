@@ -1,34 +1,72 @@
 
 import { Song, User } from '../types';
-import { Dexie, type Table } from 'dexie';
-import { createClient } from '@supabase/supabase-js';
+import Dexie, { type Table } from 'dexie';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Конфигурация Supabase
+// Конфигурация
 const SUPABASE_URL = 'https://ivfeoqfeigdvzezlwfer.supabase.co';
-// Используем API_KEY как Anon Key для Supabase, так как в данной среде он предоставляется как единственный ключ доступа
+// ПРЕДУПРЕЖДЕНИЕ: process.env.API_KEY должен быть установлен в настройках Vercel как ваш Supabase Anon Key
 const SUPABASE_KEY = process.env.API_KEY || ''; 
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+let supabase: SupabaseClient | null = null;
+try {
+  if (SUPABASE_KEY) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+} catch (e) {
+  console.error("Supabase init failed", e);
+}
 
-// Локальная база для офлайн-режима
-export class SongbookDatabase extends Dexie {
+// SQL-подобная локальная БД (Offline First)
+class SongbookDatabase extends Dexie {
   songs!: Table<Song>;
   constructor() {
-    super('GuitarSongbookDB');
-    // Fix: Added @ts-ignore to address the "Property 'version' does not exist" error which can occur in some TS/ESM environments with Dexie inheritance.
-    // @ts-ignore
-    this.version(2).stores({
-      songs: '++id, title, artist, authorId, is_public'
-    });
+    super('GuitarSongbookDB_v3');
   }
 }
+
+// Инициализация базы данных
 export const db = new SongbookDatabase();
+
+// Fix: Moved version definition outside constructor to resolve "Property 'version' does not exist on type 'SongbookDatabase'" error
+db.version(1).stores({
+  songs: 'id, title, artist, authorId, is_public'
+});
 
 const USER_KEY = 'guitar_songbook_user';
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
+// Маппинг данных (Postgres -> Frontend)
+const mapFromDb = (s: any): Song => ({
+  id: s.id,
+  title: s.title,
+  artist: s.artist,
+  content: s.content,
+  transpose: s.transpose || 0,
+  capo: s.capo || 0,
+  tuning: s.tuning || 'Standard',
+  authorName: s.author_name,
+  authorId: s.user_id,
+  createdAt: s.created_at
+});
+
+// Маппинг данных (Frontend -> Postgres)
+const mapToDb = (s: Song, userId: string) => ({
+  id: s.id,
+  user_id: userId,
+  title: s.title,
+  artist: s.artist,
+  content: s.content,
+  transpose: s.transpose,
+  capo: s.capo,
+  tuning: s.tuning,
+  author_name: s.authorName || 'Anonymous',
+  is_public: s.likes !== undefined || s.id.startsWith('pub-') ? true : false
+});
+
 export const storageService = {
-  // --- USER ---
+  isCloudEnabled: () => !!supabase && !!SUPABASE_KEY,
+
   getUser: (): User | null => {
     const data = localStorage.getItem(USER_KEY);
     return data ? JSON.parse(data) : null;
@@ -45,7 +83,6 @@ export const storageService = {
     return newUser;
   },
 
-  // --- LOCAL CACHE ---
   getSongsLocal: async (): Promise<Song[]> => {
     return await db.songs.toArray();
   },
@@ -54,69 +91,46 @@ export const storageService = {
     return await db.songs.put(song);
   },
 
-  // Fix: Added missing saveSongsBulk method required by App.tsx
   saveSongsBulk: async (songs: Song[]) => {
     return await db.songs.bulkPut(songs);
   },
 
-  // Fix: Added missing deleteSongLocal method required by App.tsx
   deleteSongLocal: async (id: string) => {
-    return await db.songs.delete(id);
+    await db.songs.delete(id);
+    const user = storageService.getUser();
+    if (supabase && user) {
+        await supabase.from('songs').delete().eq('id', id).eq('user_id', user.id);
+    }
   },
 
-  // --- SUPABASE CLOUD ---
   syncLibraryWithCloud: async (songs: Song[], user: User): Promise<boolean> => {
+    if (!supabase) return false;
     try {
-      const formattedSongs = songs.map(s => ({
-        id: s.id,
-        user_id: user.id,
-        title: s.title,
-        artist: s.artist,
-        content: s.content,
-        transpose: s.transpose,
-        capo: s.capo,
-        tuning: s.tuning,
-        author_name: user.stageName,
-        is_public: s.likes !== undefined ? true : false // Используем временный костыль или отдельное поле
-      }));
-
-      const { error } = await supabase
-        .from('songs')
-        .upsert(formattedSongs);
-
+      const payload = songs.map(s => mapToDb(s, user.id));
+      const { error } = await supabase.from('songs').upsert(payload);
       return !error;
     } catch (e) {
-      console.error("Supabase Sync Error:", e);
       return false;
     }
   },
 
   restoreLibraryFromCloud: async (user: User): Promise<Song[] | null> => {
+    if (!supabase) return null;
     try {
       const { data, error } = await supabase
         .from('songs')
         .select('*')
         .eq('user_id', user.id);
       
-      if (error) return null;
-      return data.map(s => ({
-        id: s.id,
-        title: s.title,
-        artist: s.artist,
-        content: s.content,
-        transpose: s.transpose,
-        capo: s.capo,
-        tuning: s.tuning,
-        authorName: s.author_name,
-        authorId: s.user_id
-      }));
+      if (error || !data) return null;
+      return data.map(mapFromDb);
     } catch (e) {
       return null;
     }
   },
 
-  // --- THE BOARD (Supabase Realtime Board) ---
   fetchForumSongs: async (): Promise<Song[]> => {
+    if (!supabase) return [];
     try {
       const { data, error } = await supabase
         .from('songs')
@@ -125,41 +139,18 @@ export const storageService = {
         .order('created_at', { ascending: false })
         .limit(50);
       
-      if (error) return [];
-      return data.map(s => ({
-        id: s.id,
-        title: s.title,
-        artist: s.artist,
-        content: s.content,
-        transpose: s.transpose,
-        capo: s.capo,
-        tuning: s.tuning,
-        authorName: s.author_name,
-        authorId: s.user_id,
-        createdAt: s.created_at
-      }));
+      if (error || !data) return [];
+      return data.map(mapFromDb);
     } catch (e) {
       return [];
     }
   },
 
   publishToForum: async (song: Song, user: User): Promise<boolean> => {
+    if (!supabase) return false;
     try {
-      const { error } = await supabase
-        .from('songs')
-        .upsert({
-          id: song.id,
-          user_id: user.id,
-          title: song.title,
-          artist: song.artist,
-          content: song.content,
-          transpose: song.transpose,
-          capo: song.capo,
-          tuning: song.tuning,
-          author_name: user.stageName,
-          is_public: true
-        });
-      
+      const payload = { ...mapToDb(song, user.id), is_public: true };
+      const { error } = await supabase.from('songs').upsert(payload);
       return !error;
     } catch (e) {
       return false;
@@ -169,7 +160,12 @@ export const storageService = {
   copyLibraryAsCode: async () => {
     const songs = await storageService.getSongsLocal();
     const json = JSON.stringify(songs, null, 2);
-    navigator.clipboard.writeText(json);
+    try {
+        await navigator.clipboard.writeText(json);
+        return true;
+    } catch (e) {
+        return false;
+    }
   },
 
   decodePostFromUrl: (data: string): Song | null => {
