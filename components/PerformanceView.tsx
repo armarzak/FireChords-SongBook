@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Song } from '../types';
 import { transposeText, chordSplitRegex } from '../services/chordService';
 import { ChordPanel } from './ChordPanel';
@@ -26,11 +27,34 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
   const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number | null>(null);
   
-  // Track precise scroll position to avoid integer rounding issues at slow speeds
   const virtualScrollRef = useRef<number>(0);
   const lastAppliedScrollRef = useRef<number>(0);
 
   const isDark = theme === 'dark';
+
+  // Auto-calculate font size to fit width
+  useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    
+    const lines = song.content.split('\n');
+    let maxChars = 10; // min baseline
+    lines.forEach(line => {
+      if (line.length > maxChars) maxChars = line.length;
+    });
+
+    const padding = 40; // Total horizontal padding (px)
+    const availableWidth = containerRef.current.clientWidth - padding;
+    
+    // Heuristic: for monospaced fonts, character width is roughly 0.6 of font size
+    // We want: maxChars * (fontSize * 0.6) = availableWidth
+    // So: fontSize = availableWidth / (maxChars * 0.6)
+    let calculatedSize = Math.floor(availableWidth / (maxChars * 0.61));
+    
+    // Clamp between reasonable limits
+    calculatedSize = Math.max(8, Math.min(calculatedSize, 24));
+    
+    setFontSize(calculatedSize);
+  }, [song.content]);
 
   const scrollStep = () => {
     if (!isScrolling || !containerRef.current) return;
@@ -38,21 +62,14 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     const element = containerRef.current;
     const currentActualScroll = element.scrollTop;
 
-    // Detect manual swipe: if actual scroll differs from what we set last frame, user moved it.
     if (Math.abs(currentActualScroll - lastAppliedScrollRef.current) > 1) {
       virtualScrollRef.current = currentActualScroll;
     }
 
-    // Increment with speed factor. 0.6 is a multiplier for smoothness.
     virtualScrollRef.current += (scrollSpeed * 0.6);
-    
-    // Update DOM
     element.scrollTop = virtualScrollRef.current;
-    
-    // Store what was actually applied (browser might round it)
     lastAppliedScrollRef.current = element.scrollTop;
 
-    // Check if reached bottom
     if (element.scrollTop + element.clientHeight >= element.scrollHeight - 5) {
       setIsScrolling(false);
       return;
@@ -125,9 +142,9 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
              <div className="flex flex-col items-center gap-0.5">
                <span className="text-[7px] font-black opacity-30 uppercase tracking-tighter">Font</span>
                <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`}>
-                 <button onClick={() => setFontSize(s => Math.max(s-1, 8))} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">A-</button>
+                 <button onClick={() => setFontSize(s => Math.max(s-1, 6))} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">A-</button>
                  <div className={`w-[1px] h-3 ${isDark ? 'bg-zinc-700' : 'bg-zinc-200'}`}></div>
-                 <button onClick={() => setFontSize(s => Math.min(s+1, 30))} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">A+</button>
+                 <button onClick={() => setFontSize(s => Math.min(s+1, 40))} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">A+</button>
                </div>
              </div>
              {/* Transpose Control */}
