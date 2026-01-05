@@ -44,7 +44,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
     <div className={`flex flex-col h-full pt-[env(safe-area-inset-top)] ${isDark ? 'bg-[#121212]' : 'bg-[#f8f9fa]'}`}>
       <div className={`px-6 py-6 flex justify-between items-end border-b backdrop-blur-xl ${isDark ? 'border-white/5 bg-zinc-900/50' : 'border-zinc-200 bg-white/80'}`}>
         <div>
-          <h1 className={`text-4xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-zinc-900'}`}>Common songs</h1>
+          <h1 className={`text-4xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-zinc-900'}`}>Common</h1>
           <p className={`text-xs font-black uppercase tracking-[0.2em] mt-1 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Global Archive</p>
         </div>
         <button 
@@ -57,7 +57,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 pb-32">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-32">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
             <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -75,27 +75,22 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
           </div>
         ) : (
           songs.map((song) => (
-            <div key={song.id} onClick={() => onView(song)} className={`border rounded-3xl p-6 shadow-xl active:scale-[0.98] transition-all relative overflow-hidden ${isDark ? 'bg-[#1c1c1e] border-white/5' : 'bg-white border-zinc-200'}`}>
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex-1 pr-12">
-                  <h3 className={`text-xl font-black leading-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>{song.title}</h3>
-                  <p className="text-blue-500 font-black text-[10px] uppercase tracking-widest mt-1">{song.artist}</p>
+            <div 
+              key={song.id} 
+              onClick={() => onView(song)} 
+              className={`border rounded-2xl p-4 shadow-lg active:scale-[0.98] transition-all relative overflow-hidden ${isDark ? 'bg-[#1c1c1e] border-white/5' : 'bg-white border-zinc-100'}`}
+            >
+              <div className="flex justify-between items-center">
+                <div className="flex-1 pr-4 truncate">
+                  <h3 className={`text-lg font-black leading-tight truncate ${isDark ? 'text-white' : 'text-zinc-900'}`}>{song.title}</h3>
+                  <p className="text-blue-500 font-black text-[9px] uppercase tracking-widest mt-0.5 truncate">{song.artist}</p>
                 </div>
-              </div>
-              
-              <div className="flex items-center gap-2 mt-4">
-                <span className={`text-[10px] font-black uppercase tracking-tighter ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>By {song.authorName || 'Anon'}</span>
-              </div>
-
-              <div className={`flex items-center justify-between mt-6 pt-4 border-t ${isDark ? 'border-white/5' : 'border-zinc-100'}`}>
-                <div className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-zinc-700' : 'text-zinc-300'}`}>
-                  {song.createdAt ? new Date(song.createdAt).toLocaleDateString() : 'Shared'}
-                </div>
+                
                 <button 
                   onClick={(e) => { e.stopPropagation(); onImport(song); }}
-                  className={`px-5 py-2 rounded-2xl font-black text-[9px] uppercase tracking-widest active:scale-90 transition-all border ${isDark ? 'bg-zinc-800 hover:bg-zinc-700 text-white border-white/5' : 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20'}`}
+                  className={`shrink-0 px-4 py-2 rounded-xl font-black text-[8px] uppercase tracking-widest active:scale-90 transition-all border ${isDark ? 'bg-zinc-800 hover:bg-zinc-700 text-white border-white/5' : 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'}`}
                 >
-                  Save to Library
+                  Add
                 </button>
               </div>
             </div>
