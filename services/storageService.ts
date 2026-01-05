@@ -1,31 +1,29 @@
 
 import { Song, User } from '../types';
-import Dexie, { type Table } from 'dexie';
+// Import Dexie as a named export to ensure class methods like 'version' are correctly recognized by TypeScript
+import { Dexie, type Table } from 'dexie';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// АКТУАЛЬНЫЙ URL ВАШЕГО ПРОЕКТА
+// Используем ваши актуальные данные
 const SUPABASE_URL = 'https://nakmccxvygrotpdaplwh.supabase.co';
-
-// Ключ берется из окружения. В песочнице или Vercel он должен быть в API_KEY.
-const SUPABASE_KEY = (typeof process !== 'undefined' && process.env?.API_KEY) ? process.env.API_KEY : ''; 
+// API key must be obtained exclusively from the environment variable process.env.API_KEY
+const SUPABASE_KEY = process.env.API_KEY || ''; 
 
 let supabase: SupabaseClient | null = null;
 try {
   if (SUPABASE_KEY && SUPABASE_KEY.length > 10) {
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log("📡 Supabase: Initializing connection to " + SUPABASE_URL);
-  } else {
-    console.warn("⚠️ Supabase: API_KEY is missing or invalid. Cloud features disabled.");
+    console.log("📡 Supabase: Connection initialized to " + SUPABASE_URL);
   }
 } catch (e) {
-  console.error("❌ Supabase: Critical initialization error:", e);
+  console.error("❌ Supabase: Client init failed:", e);
 }
 
-// Локальная база (Dexie)
 class SongbookDatabase extends Dexie {
   songs!: Table<Song>;
   constructor() {
     super('GuitarSongbookDB_v3');
+    // Defining database schema. 'version' is a method inherited from Dexie.
     this.version(1).stores({
       songs: 'id, title, artist, authorId, is_public'
     });
@@ -33,7 +31,6 @@ class SongbookDatabase extends Dexie {
 }
 
 export const db = new SongbookDatabase();
-
 const USER_KEY = 'guitar_songbook_user';
 
 const mapFromDb = (s: any): Song => ({
@@ -56,11 +53,11 @@ const mapToDb = (s: Song, userId: string) => ({
   title: s.title,
   artist: s.artist,
   content: s.content,
-  transpose: s.transpose,
-  capo: s.capo,
-  tuning: s.tuning,
+  transpose: s.transpose || 0,
+  capo: s.capo || 0,
+  tuning: s.tuning || 'Standard',
   author_name: s.authorName || 'Anonymous',
-  is_public: s.id.startsWith('pub-') || s.is_public === true ? true : false
+  is_public: !!s.is_public
 });
 
 export const storageService = {
@@ -102,19 +99,18 @@ export const storageService = {
     }
   },
 
-  syncLibraryWithCloud: async (songs: Song[], user: User): Promise<boolean> => {
-    if (!supabase) return false;
+  syncLibraryWithCloud: async (songs: Song[], user: User): Promise<{success: boolean, error?: string}> => {
+    if (!supabase) return { success: false, error: 'No client' };
     try {
       const payload = songs.map(s => mapToDb(s, user.id));
       const { error } = await supabase.from('songs').upsert(payload);
       if (error) {
-          console.error("❌ Supabase Sync Error:", error.message, error.details);
-          return false;
+          console.error("❌ Sync Error:", error.message, error.details);
+          return { success: false, error: error.message };
       }
-      return true;
-    } catch (e) {
-      console.error("❌ Sync exception:", e);
-      return false;
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
     }
   },
 
@@ -127,12 +123,11 @@ export const storageService = {
         .eq('user_id', user.id);
       
       if (error) {
-          console.error("❌ Supabase Restore Error:", error.message);
+          console.error("❌ Restore Error:", error.message);
           return null;
       }
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
-      console.error("❌ Restore exception:", e);
       return null;
     }
   },
@@ -144,8 +139,7 @@ export const storageService = {
         .from('songs')
         .select('*')
         .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
       
       if (error) return [];
       return data ? data.map(mapFromDb) : [];

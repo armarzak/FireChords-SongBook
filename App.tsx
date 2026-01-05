@@ -48,7 +48,6 @@ const App: React.FC = () => {
       
       if (storageService.isCloudEnabled()) {
         const cloud = await storageService.restoreLibraryFromCloud(u);
-        // Если вернулся массив (даже пустой), значит соединение с таблицей есть
         if (cloud !== null) {
           setIsOnline(true);
           if (cloud.length > 0) {
@@ -58,14 +57,6 @@ const App: React.FC = () => {
         } else {
           setIsOnline(false);
         }
-      }
-
-      // Если совсем ничего нет - ставим дефолт
-      const currentLocal = await storageService.getSongsLocal();
-      if (currentLocal.length === 0) {
-          const defaults = storageService.getDefaultSongs();
-          setSongs(defaults);
-          await storageService.saveSongsBulk(defaults);
       }
     } catch (e) {
       setIsOnline(false);
@@ -89,13 +80,18 @@ const App: React.FC = () => {
 
   const handleSync = async (updatedSongs: Song[]) => {
     if (!user || !storageService.isCloudEnabled()) {
+        setIsOnline(false);
         return false;
     }
     setIsSyncing(true);
-    const success = await storageService.syncLibraryWithCloud(updatedSongs, user);
-    setIsOnline(success);
+    const result = await storageService.syncLibraryWithCloud(updatedSongs, user);
+    setIsOnline(result.success);
     setIsSyncing(false);
-    return success;
+    
+    if (!result.success && result.error) {
+        console.error("Cloud Error:", result.error);
+    }
+    return result.success;
   };
 
   const handleSaveSong = async (songData: Partial<Song>) => {
@@ -125,7 +121,7 @@ const App: React.FC = () => {
 
     setSongs(updatedSongs);
     const synced = await handleSync(updatedSongs);
-    showToast(synced ? "Saved & Synced" : "Saved Locally");
+    showToast(synced ? "Synced with Cloud" : "Saved Locally (Cloud Error)");
     setState(AppState.LIST);
   };
 
@@ -145,7 +141,7 @@ const App: React.FC = () => {
             isOnline={isOnline}
             onSyncManual={async () => {
               const ok = await handleSync(songs);
-              showToast(ok ? "Cloud Sync OK" : "Sync Failed: check Console");
+              showToast(ok ? "Cloud Sync OK" : "Sync Failed: See Console");
             }}
             onSelect={(s) => { 
                 setSharedSong(null);
@@ -182,6 +178,7 @@ const App: React.FC = () => {
               setSongs(songs.filter(s => s.id !== id));
               setState(AppState.LIST);
               showToast("Deleted");
+              handleSync(songs.filter(s => s.id !== id));
             }}
             onNotify={showToast}
           />
