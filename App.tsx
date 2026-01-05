@@ -19,6 +19,9 @@ const App: React.FC = () => {
   const [sharedSong, setSharedSong] = useState<Song | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'dark';
+  });
 
   useEffect(() => {
     const currentUser = storageService.getUser();
@@ -39,6 +42,17 @@ const App: React.FC = () => {
       document.body.style.position = '';
     };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+      document.getElementById('theme-color-meta')?.setAttribute('content', '#f8f9fa');
+    } else {
+      document.body.classList.remove('light-theme');
+      document.getElementById('theme-color-meta')?.setAttribute('content', '#121212');
+    }
+  }, [theme]);
 
   const initApp = async (u: User) => {
     setIsSyncing(true);
@@ -76,6 +90,10 @@ const App: React.FC = () => {
     initApp(newUser);
     setState(AppState.LIST);
     showToast(`Welcome, ${name}!`);
+  };
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
   const handleSync = async (updatedSongs: Song[]) => {
@@ -127,11 +145,16 @@ const App: React.FC = () => {
 
   const currentSong = sharedSong || songs.find(s => s.id === currentSongId);
 
+  const bgClass = theme === 'light' ? 'bg-[#f8f9fa] text-[#1a1a1a]' : 'bg-[#121212] text-white';
+  const navBgClass = theme === 'light' ? 'bg-white/80 border-zinc-200' : 'bg-zinc-900/95 border-white/5';
+  const tabActiveColor = 'text-blue-500';
+  const tabInactiveColor = theme === 'light' ? 'text-zinc-400' : 'text-zinc-500';
+
   return (
-    <div className="h-full w-full bg-[#121212] text-white select-none flex flex-col fixed inset-0 font-sans">
-      <div className="h-[env(safe-area-inset-top)] bg-zinc-900/80 backdrop-blur-xl shrink-0 z-[1000]"></div>
+    <div className={`h-full w-full ${bgClass} select-none flex flex-col fixed inset-0 font-sans transition-colors duration-300`}>
+      <div className={`h-[env(safe-area-inset-top)] ${theme === 'light' ? 'bg-white' : 'bg-zinc-900/80'} backdrop-blur-xl shrink-0 z-[1000]`}></div>
       
-      {state === AppState.AUTH && <LoginScreen onLogin={handleLogin} />}
+      {state === AppState.AUTH && <LoginScreen onLogin={handleLogin} theme={theme} />}
 
       <div className="flex-1 relative overflow-hidden">
         {state === AppState.LIST && (
@@ -139,10 +162,8 @@ const App: React.FC = () => {
             songs={songs} 
             isSyncing={isSyncing}
             isOnline={isOnline}
-            onSyncManual={async () => {
-              const ok = await handleSync(songs);
-              showToast(ok ? "Cloud Sync OK" : "Sync Failed: See Console");
-            }}
+            theme={theme}
+            onToggleTheme={toggleTheme}
             onSelect={(s) => { 
                 setSharedSong(null);
                 setCurrentSongId(s.id); 
@@ -155,6 +176,7 @@ const App: React.FC = () => {
 
         {state === AppState.FORUM && (
           <CommunityFeed 
+            theme={theme}
             onImport={async (s) => {
               const newSong = { ...s, id: 'pub-' + s.id, is_public: false };
               const newSongs = [newSong, ...songs];
@@ -170,15 +192,17 @@ const App: React.FC = () => {
         {state === AppState.EDIT && (
           <SongEditor 
             song={currentSong} 
+            theme={theme}
             existingArtists={[]}
             onSave={handleSaveSong} 
             onCancel={() => setState(AppState.LIST)}
             onDelete={async (id) => {
               await storageService.deleteSongLocal(id);
-              setSongs(songs.filter(s => s.id !== id));
+              const filtered = songs.filter(s => s.id !== id);
+              setSongs(filtered);
               setState(AppState.LIST);
               showToast("Deleted");
-              handleSync(songs.filter(s => s.id !== id));
+              handleSync(filtered);
             }}
             onNotify={showToast}
           />
@@ -187,6 +211,7 @@ const App: React.FC = () => {
         {state === AppState.PERFORMANCE && currentSong && (
           <PerformanceView 
             song={currentSong} 
+            theme={theme}
             onClose={() => {
                 setSharedSong(null);
                 setState(AppState.LIST);
@@ -204,25 +229,25 @@ const App: React.FC = () => {
           />
         )}
 
-        {state === AppState.DICTIONARY && <ChordDictionary />}
-        {state === AppState.TUNER && <Tuner />}
+        {state === AppState.DICTIONARY && <ChordDictionary theme={theme} />}
+        {state === AppState.TUNER && <Tuner theme={theme} />}
       </div>
 
       {toast && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[2000] bg-zinc-800/90 backdrop-blur-2xl text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl border border-white/10 animate-in fade-in slide-in-from-top-4">
+        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[2000] ${theme === 'light' ? 'bg-white text-zinc-800' : 'bg-zinc-800/90 text-white'} backdrop-blur-2xl px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl border ${theme === 'light' ? 'border-zinc-200' : 'border-white/10'} animate-in fade-in slide-in-from-top-4`}>
             {toast}
         </div>
       )}
 
       {![AppState.AUTH, AppState.EDIT, AppState.PERFORMANCE].includes(state) && (
-        <div className="h-[calc(64px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-2xl border-t border-white/5 flex items-center justify-around pb-[env(safe-area-inset-bottom)] z-[100]">
+        <div className={`h-[calc(64px+env(safe-area-inset-bottom))] ${navBgClass} backdrop-blur-2xl border-t flex items-center justify-around pb-[env(safe-area-inset-bottom)] z-[100]`}>
           {[
             { id: AppState.LIST, label: 'Songs', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5S19.832 5.477 21 6.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
             { id: AppState.FORUM, label: 'Board', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
             { id: AppState.DICTIONARY, label: 'Theory', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
             { id: AppState.TUNER, label: 'Tuner', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' }
           ].map(tab => (
-            <button key={tab.id} onClick={() => setState(tab.id)} className={`flex flex-col items-center gap-1 flex-1 ${state === tab.id ? 'text-blue-500' : 'text-zinc-500'}`}>
+            <button key={tab.id} onClick={() => setState(tab.id)} className={`flex flex-col items-center gap-1 flex-1 ${state === tab.id ? tabActiveColor : tabInactiveColor}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d={tab.icon} /></svg>
               <span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>
             </button>

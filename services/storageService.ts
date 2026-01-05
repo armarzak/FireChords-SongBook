@@ -26,11 +26,15 @@ export interface SongbookDatabase extends Dexie {
   songs: Table<Song>;
 }
 
-export const db = new Dexie('GuitarSongbookDB_v3') as SongbookDatabase;
+// Fix: Configure the Dexie instance before casting to SongbookDatabase to ensure 
+// the 'version' property is correctly identified by the TypeScript compiler.
+const dexieInstance = new Dexie('GuitarSongbookDB_v3');
 
-db.version(1).stores({
+dexieInstance.version(1).stores({
   songs: 'id, title, artist, authorId, is_public'
 });
+
+export const db = dexieInstance as SongbookDatabase;
 
 const USER_KEY = 'guitar_songbook_user';
 

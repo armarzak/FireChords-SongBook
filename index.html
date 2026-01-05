@@ -10,13 +10,21 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Songbook">
     <meta name="apple-touch-fullscreen" content="yes">
-    <meta name="theme-color" content="#121212">
+    <meta name="theme-color" content="#121212" id="theme-color-meta">
     
     <!-- App Icon -->
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4NCiAgPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMTUiIGZpbGw9ImJsYWNrIi8+DQogIDxwYXRoIGQ9Ik0yNDAgODB2MTUwaDMyVjgwaC0zMnptLTEwIDE2MGMtNDAgMC03MCAzMC03MCA3MHMzMCA3MCA3MCA3MGgxMTBjNDAgMCA3MC0zMCA3MC03MHMtMzAtNzAtNzAtNzBoLTExMHptNTUgNzBhMjAgMjAgMCAxIDEgMC00MCAyMCAyMCAwIDAgMSAwIDQweiIgZmlsbD0id2hpdGUiLz4NCjwvc3ZnPg==">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4NCiAgPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMTUyIiBmaWxsPSJibGFjayIvPg0KICA8cGF0aCBkPSJNMjQwIDgwdjE1MGgzMlY4MGgtMzJ6bS0xMCAxNjBjLTQwIDAtNzAgMzAtNzAgNzBzMzAgNzAgNzAgNzBoMTEwYzQwIDAgNzAtMzAgNzAtNzBzLTMwLTcwLTcwLTcwaC0xMTB6bTU1IDcwYTIwIDIwIDAgMSAxIDAtNDAgMjAgMjAgMCAwIDEgMCA0MHoiIGZpbGw9IndoaXRlIi8+DQo8L3N2Zz4=">
     
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {}
+        }
+      }
+    </script>
     <style>
         :root {
             --safe-area-top: env(safe-area-inset-top);
@@ -32,6 +40,11 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
             padding: 0;
+            transition: background-color 0.3s ease;
+        }
+        body.light-theme {
+            background-color: #f8f9fa;
+            color: #1a1a1a;
         }
         .mono-grid {
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
@@ -41,7 +54,7 @@
         * { touch-action: manipulation; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.2); border-radius: 10px; }
     </style>
 <script type="importmap">
 {

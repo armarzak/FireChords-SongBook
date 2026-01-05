@@ -11,9 +11,11 @@ interface SongListProps {
   isSyncing?: boolean;
   isOnline?: boolean;
   onSyncManual?: () => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
 }
 
-export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onExportSuccess, isSyncing, isOnline, onSyncManual }) => {
+export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onExportSuccess, isSyncing, isOnline, onSyncManual, theme, onToggleTheme }) => {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.SONGS);
 
@@ -43,52 +45,49 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
     }));
   }, [songs, search, viewMode]);
 
+  const isDark = theme === 'dark';
+
   return (
-    <div className="flex flex-col h-full bg-[#121212]">
-      <div className="px-6 pt-6 pb-2 space-y-5 bg-[#121212]">
+    <div className={`flex flex-col h-full ${isDark ? 'bg-[#121212]' : 'bg-[#f8f9fa]'}`}>
+      <div className={`px-6 pt-6 pb-2 space-y-5 ${isDark ? 'bg-[#121212]' : 'bg-[#f8f9fa]'}`}>
         <div className="flex justify-between items-center">
           <div className="flex flex-col">
-            <h1 className="text-4xl font-black tracking-tight text-white leading-none">Library</h1>
+            <h1 className={`text-4xl font-black tracking-tight leading-none ${isDark ? 'text-white' : 'text-zinc-900'}`}>Library</h1>
             <div className="mt-2 flex items-center gap-2">
                 <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${isOnline ? 'bg-blue-500/10 border-blue-500/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? (isSyncing ? 'bg-blue-400 animate-pulse' : 'bg-blue-500') : 'bg-orange-500 animate-pulse'}`}></div>
                     <span className={`text-[8px] font-black uppercase ${isOnline ? 'text-blue-400' : 'text-orange-400'}`}>
-                        {isOnline ? 'Postgres Cloud' : 'Local Only'}
+                        {isOnline ? 'Cloud Synced' : 'Local Only'}
                     </span>
                 </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button 
-                onClick={onSyncManual}
-                className="p-3 bg-zinc-800/50 backdrop-blur-xl rounded-full text-zinc-400 active:text-blue-500 transition-colors border border-white/5"
+                onClick={onToggleTheme}
+                className={`p-3 rounded-full transition-all border ${isDark ? 'bg-zinc-800/50 text-zinc-400 border-white/5' : 'bg-white text-zinc-600 border-zinc-200 shadow-sm'}`}
             >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-            </button>
-            <button 
-                onClick={async () => { 
-                    const ok = await storageService.copyLibraryAsCode(); 
-                    if (ok) onExportSuccess('Snapshot Copied'); 
-                }}
-                className="p-3 bg-zinc-800/50 backdrop-blur-xl rounded-full text-zinc-400 active:text-blue-500 transition-colors border border-white/5"
-            >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
+                {isDark ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 16.243l.707.707M7.05 7.05l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
             </button>
           </div>
         </div>
 
-        <div className="flex bg-[#1c1c1e] p-1 rounded-2xl border border-white/5 shadow-inner">
+        <div className={`flex p-1 rounded-2xl border shadow-inner ${isDark ? 'bg-[#1c1c1e] border-white/5' : 'bg-zinc-200/50 border-zinc-200'}`}>
             <button 
               onClick={() => setViewMode(ViewMode.SONGS)} 
-              className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${viewMode === ViewMode.SONGS ? 'bg-zinc-700 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${viewMode === ViewMode.SONGS ? (isDark ? 'bg-zinc-700 text-white shadow-lg' : 'bg-white text-zinc-900 shadow-sm') : (isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-700')}`}
             >SONGS</button>
             <button 
               onClick={() => setViewMode(ViewMode.ARTISTS)} 
-              className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${viewMode === ViewMode.ARTISTS ? 'bg-zinc-700 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${viewMode === ViewMode.ARTISTS ? (isDark ? 'bg-zinc-700 text-white shadow-lg' : 'bg-white text-zinc-900 shadow-sm') : (isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-700')}`}
             >ARTISTS</button>
         </div>
 
@@ -96,11 +95,11 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
           <input 
             type="text" 
             placeholder="Search repertoire..." 
-            className="w-full bg-[#1c1c1e] border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-zinc-600 outline-none focus:ring-2 focus:ring-blue-500/20"
+            className={`w-full border rounded-2xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${isDark ? 'bg-[#1c1c1e] border-white/5 text-white placeholder:text-zinc-600' : 'bg-white border-zinc-200 text-zinc-900 placeholder:text-zinc-400'}`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <svg className="w-5 h-5 text-zinc-600 absolute left-4 top-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={`w-5 h-5 absolute left-4 top-4 ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
@@ -109,7 +108,7 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
       <div className="flex-1 overflow-y-auto pb-40 scroll-smooth px-2">
         {processedData.map(group => (
             <div key={group.label} className="mb-4">
-                <div className="sticky top-0 bg-[#121212]/90 backdrop-blur-xl px-5 py-2 border-b border-white/5 z-10 flex justify-between items-center">
+                <div className={`sticky top-0 backdrop-blur-xl px-5 py-2 border-b z-10 flex justify-between items-center ${isDark ? 'bg-[#121212]/90 border-white/5' : 'bg-[#f8f9fa]/90 border-zinc-200'}`}>
                     <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">{group.label}</span>
                 </div>
                 <div className="px-3">
@@ -117,17 +116,17 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
                     <button 
                         key={song.id} 
                         onClick={() => onSelect(song)} 
-                        className="w-full text-left py-4 border-b border-white/5 active:bg-white/5 transition-all px-4 rounded-2xl my-1 flex justify-between items-center group"
+                        className={`w-full text-left py-4 border-b active:bg-white/5 transition-all px-4 rounded-2xl my-1 flex justify-between items-center group ${isDark ? 'border-white/5' : 'border-zinc-100 hover:bg-zinc-50'}`}
                     >
                         <div className="flex-1">
-                            <div className="text-[17px] font-bold text-zinc-100 group-active:text-blue-400 transition-colors">{song.title}</div>
-                            <div className="text-sm text-zinc-500 font-medium">{song.artist}</div>
+                            <div className={`text-[17px] font-bold group-active:text-blue-400 transition-colors ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{song.title}</div>
+                            <div className={`text-sm font-medium ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>{song.artist}</div>
                         </div>
                         <div className="flex items-center gap-3">
                             {song.id.startsWith('pub-') && (
                                 <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
                             )}
-                            <svg className="w-4 h-4 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className={`w-4 h-4 ${isDark ? 'text-zinc-800' : 'text-zinc-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" />
                             </svg>
                         </div>
@@ -138,12 +137,12 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
         ))}
         {processedData.length === 0 && (
             <div className="py-20 text-center flex flex-col items-center">
-                <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mb-4 text-zinc-700">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isDark ? 'bg-zinc-900 text-zinc-700' : 'bg-zinc-100 text-zinc-300'}`}>
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                 </div>
-                <p className="text-zinc-600 font-black text-xs uppercase tracking-widest">No matching tracks</p>
+                <p className={`font-black text-xs uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>No matching tracks</p>
             </div>
         )}
       </div>

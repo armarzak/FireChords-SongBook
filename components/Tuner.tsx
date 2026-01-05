@@ -12,12 +12,18 @@ const NOTES = [
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-export const Tuner: React.FC = () => {
+interface TunerProps {
+  theme?: 'light' | 'dark';
+}
+
+export const Tuner: React.FC<TunerProps> = ({ theme = 'dark' }) => {
   const [pitch, setPitch] = useState<number | null>(null);
   const [note, setNote] = useState<string>('--');
   const [cents, setCents] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(false);
+
+  const isDark = theme === 'dark';
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -28,17 +34,14 @@ export const Tuner: React.FC = () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      
       const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
       const ctx = new AudioContextClass();
       audioCtxRef.current = ctx;
-      
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 2048;
       source.connect(analyser);
       analyserRef.current = analyser;
-      
       setIsActive(true);
       updatePitch();
     } catch (err) {
@@ -60,13 +63,10 @@ export const Tuner: React.FC = () => {
 
   const updatePitch = () => {
     if (!analyserRef.current) return;
-
     const bufferLength = analyserRef.current.fftSize;
     const buffer = new Float32Array(bufferLength);
     analyserRef.current.getFloatTimeDomainData(buffer);
-
     const autoCorrelateValue = autoCorrelate(buffer, audioCtxRef.current!.sampleRate);
-
     if (autoCorrelateValue !== -1) {
       setPitch(autoCorrelateValue);
       const { noteName, centsOff } = getNoteFromFreq(autoCorrelateValue);
@@ -75,33 +75,27 @@ export const Tuner: React.FC = () => {
     } else {
       setPitch(null);
     }
-
     animationRef.current = requestAnimationFrame(updatePitch);
   };
 
   const autoCorrelate = (buffer: Float32Array, sampleRate: number) => {
     let SIZE = buffer.length;
     let rms = 0;
-
     for (let i = 0; i < SIZE; i++) {
       let val = buffer[i];
       rms += val * val;
     }
     rms = Math.sqrt(rms / SIZE);
-    if (rms < 0.01) return -1; // Сигнал слишком тихий
-
+    if (rms < 0.01) return -1;
     let r1 = 0, r2 = SIZE - 1, thres = 0.2;
     for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buffer[i]) < thres) { r1 = i; break; }
     for (let i = 1; i < SIZE / 2; i++) if (Math.abs(buffer[SIZE - i]) < thres) { r2 = SIZE - i; break; }
-
     buffer = buffer.slice(r1, r2);
     SIZE = buffer.length;
-
     let c = new Float32Array(SIZE).fill(0);
     for (let i = 0; i < SIZE; i++)
       for (let j = 0; j < SIZE - i; j++)
         c[i] = c[i] + buffer[j] * buffer[j + i];
-
     let d = 0; while (c[d] > c[d + 1]) d++;
     let maxval = -1, maxpos = -1;
     for (let i = d; i < SIZE; i++) {
@@ -111,12 +105,10 @@ export const Tuner: React.FC = () => {
       }
     }
     let T0 = maxpos;
-
     let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
     let a = (x1 + x3 - 2 * x2) / 2;
     let b = (x3 - x1) / 2;
     if (a) T0 = T0 - b / (2 * a);
-
     return sampleRate / T0;
   };
 
@@ -129,23 +121,23 @@ export const Tuner: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-black pt-[env(safe-area-inset-top)] overflow-hidden">
+    <div className={`flex flex-col h-full pt-[env(safe-area-inset-top)] overflow-hidden transition-colors duration-300 ${isDark ? 'bg-black' : 'bg-[#f8f9fa]'}`}>
       <div className="py-6 text-center shrink-0">
-        <h1 className="text-2xl font-black uppercase tracking-widest text-zinc-500">Tuner</h1>
+        <h1 className={`text-2xl font-black uppercase tracking-widest ${isDark ? 'text-zinc-500' : 'text-zinc-300'}`}>Tuner</h1>
       </div>
 
       {!isActive ? (
         <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-          <div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(59,130,246,0.1)]">
+          <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-8 border transition-all ${isDark ? 'bg-zinc-900 border-white/5 shadow-[0_0_50px_rgba(59,130,246,0.1)]' : 'bg-white border-zinc-200 shadow-xl'}`}>
              <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
              </svg>
           </div>
-          <h2 className="text-xl font-bold mb-2">Ready to tune?</h2>
+          <h2 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-zinc-900'}`}>Ready to tune?</h2>
           <p className="text-zinc-500 text-sm mb-10 max-w-[240px]">We'll need access to your microphone to detect the strings.</p>
           <button 
             onClick={startTuner}
-            className="bg-blue-600 px-10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform"
+            className="bg-blue-600 px-10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-transform text-white shadow-xl shadow-blue-500/20"
           >
             Enable Microphone
           </button>
@@ -153,29 +145,22 @@ export const Tuner: React.FC = () => {
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-between py-10">
-          {/* Gauge Section */}
           <div className="relative w-full flex flex-col items-center px-6">
              <div className="w-full max-w-sm aspect-[2/1] relative overflow-hidden">
-                {/* Background Arc */}
                 <svg viewBox="0 0 200 100" className="w-full">
-                   <path d="M20,90 A80,80 0 0,1 180,90" fill="none" stroke="#1c1c1e" strokeWidth="15" strokeLinecap="round" />
-                   {/* Target markers */}
+                   <path d="M20,90 A80,80 0 0,1 180,90" fill="none" stroke={isDark ? "#1c1c1e" : "#e4e4e7"} strokeWidth="15" strokeLinecap="round" />
                    <line x1="100" y1="10" x2="100" y2="25" stroke="#3b82f6" strokeWidth="2" />
-                   
-                   {/* The Needle */}
                    <g style={{ 
                       transform: `rotate(${cents * 0.9}deg)`, 
                       transformOrigin: '100px 90px',
                       transition: 'transform 0.1s cubic-bezier(0.2, 0, 0.2, 1)'
                    }}>
                       <line x1="100" y1="90" x2="100" y2="20" stroke={Math.abs(cents) < 5 ? '#22c55e' : '#ef4444'} strokeWidth="2" strokeLinecap="round" />
-                      <circle cx="100" cy="90" r="4" fill="white" />
+                      <circle cx="100" cy="90" r="4" fill={isDark ? "white" : "#1a1a1a"} />
                    </g>
                 </svg>
-
-                {/* Digital Readout */}
                 <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center">
-                   <div className={`text-7xl font-black tracking-tighter transition-colors ${Math.abs(cents) < 5 ? 'text-green-500' : 'text-white'}`}>
+                   <div className={`text-7xl font-black tracking-tighter transition-colors ${Math.abs(cents) < 5 ? 'text-green-500' : (isDark ? 'text-white' : 'text-zinc-900')}`}>
                       {note}
                    </div>
                    <div className={`text-xs font-black uppercase tracking-widest mt-2 ${Math.abs(cents) < 5 ? 'text-green-500' : 'text-zinc-500'}`}>
@@ -184,25 +169,22 @@ export const Tuner: React.FC = () => {
                 </div>
              </div>
           </div>
-
-          {/* String Guide */}
           <div className="w-full px-8 grid grid-cols-6 gap-2 max-w-md">
             {NOTES.map((n, i) => {
               const isActiveString = note === n.name;
               return (
                 <div key={i} className="flex flex-col items-center gap-2">
-                   <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${isActiveString ? 'bg-zinc-100 border-white text-black scale-110 shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'bg-transparent border-zinc-800 text-zinc-600'}`}>
+                   <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${isActiveString ? (isDark ? 'bg-zinc-100 border-white text-black scale-110 shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'bg-blue-600 border-blue-500 text-white scale-110 shadow-lg shadow-blue-500/30') : (isDark ? 'bg-transparent border-zinc-800 text-zinc-600' : 'bg-transparent border-zinc-200 text-zinc-300')}`}>
                       <span className="text-xs font-bold">{n.name}</span>
                    </div>
-                   <span className="text-[8px] font-black text-zinc-700">{n.oct}</span>
+                   <span className={`text-[8px] font-black ${isDark ? 'text-zinc-700' : 'text-zinc-400'}`}>{n.oct}</span>
                 </div>
               );
             })}
           </div>
-
           <button 
             onClick={stopTuner}
-            className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] py-4 px-8 border border-zinc-900 rounded-full active:bg-zinc-900"
+            className={`text-[10px] font-black uppercase tracking-[0.2em] py-4 px-8 border rounded-full active:bg-zinc-900 transition-all ${isDark ? 'text-zinc-500 border-zinc-900 active:bg-zinc-900' : 'text-zinc-400 border-zinc-200 active:bg-zinc-100'}`}
           >
             Turn Off
           </button>
