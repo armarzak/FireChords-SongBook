@@ -1,36 +1,37 @@
 
 import { Song, User } from '../types';
-// Import Dexie as a named export to ensure class methods like 'version' are correctly recognized by TypeScript
 import { Dexie, type Table } from 'dexie';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Используем ваши актуальные данные
 const SUPABASE_URL = 'https://nakmccxvygrotpdaplwh.supabase.co';
-// API key must be obtained exclusively from the environment variable process.env.API_KEY
-const SUPABASE_KEY = process.env.API_KEY || ''; 
+// По умолчанию используем API_KEY из среды, если его нет - ваш предоставленный ключ
+const FALLBACK_KEY = 'sb_publishable__P0cMXcqbjZWKMJB8g_TcA_ltI3Qgm_';
+const SUPABASE_KEY = (typeof process !== 'undefined' && process.env?.API_KEY) ? process.env.API_KEY : FALLBACK_KEY; 
 
 let supabase: SupabaseClient | null = null;
 try {
   if (SUPABASE_KEY && SUPABASE_KEY.length > 10) {
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log("📡 Supabase: Connection initialized to " + SUPABASE_URL);
+    console.log("📡 Supabase: Client initialized.");
+  } else {
+    console.error("❌ Supabase: No API Key found in environment.");
   }
 } catch (e) {
-  console.error("❌ Supabase: Client init failed:", e);
+  console.error("❌ Supabase: Init error:", e);
 }
 
-class SongbookDatabase extends Dexie {
-  songs!: Table<Song>;
-  constructor() {
-    super('GuitarSongbookDB_v3');
-    // Defining database schema. 'version' is a method inherited from Dexie.
-    this.version(1).stores({
-      songs: 'id, title, artist, authorId, is_public'
-    });
-  }
+// Fix: Define the database structure using an interface and type assertion to avoid 
+// inheritance issues where 'version' might not be correctly recognized by the TS compiler.
+export interface SongbookDatabase extends Dexie {
+  songs: Table<Song>;
 }
 
-export const db = new SongbookDatabase();
+export const db = new Dexie('GuitarSongbookDB_v3') as SongbookDatabase;
+
+db.version(1).stores({
+  songs: 'id, title, artist, authorId, is_public'
+});
+
 const USER_KEY = 'guitar_songbook_user';
 
 const mapFromDb = (s: any): Song => ({
@@ -50,9 +51,9 @@ const mapFromDb = (s: any): Song => ({
 const mapToDb = (s: Song, userId: string) => ({
   id: s.id,
   user_id: userId,
-  title: s.title,
-  artist: s.artist,
-  content: s.content,
+  title: s.title || 'Untitled',
+  artist: s.artist || 'Unknown',
+  content: s.content || '',
   transpose: s.transpose || 0,
   capo: s.capo || 0,
   tuning: s.tuning || 'Standard',
@@ -100,16 +101,27 @@ export const storageService = {
   },
 
   syncLibraryWithCloud: async (songs: Song[], user: User): Promise<{success: boolean, error?: string}> => {
-    if (!supabase) return { success: false, error: 'No client' };
+    if (!supabase) return { success: false, error: 'Supabase client not initialized' };
+    
     try {
       const payload = songs.map(s => mapToDb(s, user.id));
-      const { error } = await supabase.from('songs').upsert(payload);
+      // Пытаемся сохранить данные. Если таблицы нет или колонки не совпадают - будет ошибка.
+      const { error, status, statusText } = await supabase.from('songs').upsert(payload);
+      
       if (error) {
-          console.error("❌ Sync Error:", error.message, error.details);
-          return { success: false, error: error.message };
+          const detail = `${error.message} (Code: ${error.code}). Details: ${error.details}`;
+          console.group("❌ Supabase Sync Failed");
+          console.error("Message:", error.message);
+          console.error("Code:", error.code);
+          console.error("Details:", error.details);
+          console.error("Hint:", error.hint);
+          console.groupEnd();
+          return { success: false, error: detail };
       }
+      
       return { success: true };
     } catch (e: any) {
+      console.error("❌ Sync exception:", e);
       return { success: false, error: e.message };
     }
   },
@@ -123,7 +135,7 @@ export const storageService = {
         .eq('user_id', user.id);
       
       if (error) {
-          console.error("❌ Restore Error:", error.message);
+          console.error("❌ Supabase Restore Error:", error.message);
           return null;
       }
       return data ? data.map(mapFromDb) : [];
@@ -153,6 +165,7 @@ export const storageService = {
     try {
       const payload = { ...mapToDb(song, user.id), is_public: true };
       const { error } = await supabase.from('songs').upsert(payload);
+      if (error) console.error("❌ Publish Error:", error.message);
       return !error;
     } catch (e) {
       return false;
