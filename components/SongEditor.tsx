@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Song } from '../types';
+import { storageService } from '../services/storageService';
 
 interface SongEditorProps {
   song?: Song;
@@ -17,26 +18,40 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied'>('idle');
   
-  const deleteTimerRef = useRef<number | null>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    return () => {
-      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+  const handleShare = async () => {
+    if (!title || !content) return;
+    
+    const songData: Song = {
+        id: 'temp',
+        title,
+        artist,
+        content,
+        transpose: 0
     };
-  }, []);
-
-  // Закрытие подсказок при клике вне области
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    
+    const encoded = storageService.encodeSongForUrl(songData);
+    const shareUrl = `${window.location.origin}${window.location.pathname}?import=${encoded}`;
+    
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: `Chords for ${title}`,
+                text: `Check out the chords for "${title}" by ${artist}`,
+                url: shareUrl
+            });
+        } catch (e) {
+            console.log("Share cancelled");
+        }
+    } else {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareStatus('copied');
+        setTimeout(() => setShareStatus('idle'), 2000);
+    }
+  };
 
   const handleArtistChange = (value: string) => {
     setArtist(value);
@@ -46,59 +61,19 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
         a.toLowerCase().startsWith(trimmedValue.toLowerCase()) && 
         a.toLowerCase() !== trimmedValue.toLowerCase()
       );
-      setSuggestions(filtered.slice(0, 5)); // Показываем топ-5
+      setSuggestions(filtered.slice(0, 5));
       setShowSuggestions(filtered.length > 0);
     } else {
-      setSuggestions([]);
       setShowSuggestions(false);
-    }
-  };
-
-  const selectSuggestion = (suggestion: string) => {
-    setArtist(suggestion);
-    setSuggestions([]);
-    setShowSuggestions(false);
-  };
-
-  const handleSave = () => {
-    if (!title.trim()) {
-        alert('Title is required');
-        return;
-    }
-    onSave({ 
-        title: title.trim(), 
-        artist: artist.trim() || 'Unknown Artist', 
-        content: content, 
-        transpose: song?.transpose || 0 
-    });
-  };
-
-  const initiateDelete = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!song) return;
-
-    if (!isConfirmingDelete) {
-      setIsConfirmingDelete(true);
-      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
-      deleteTimerRef.current = window.setTimeout(() => {
-        setIsConfirmingDelete(false);
-      }, 3000);
-    } else {
-      if (onDelete) {
-        onDelete(song.id);
-      }
     }
   };
 
   return (
     <div className="fixed inset-0 bg-[#121212] z-[150] flex flex-col pt-[env(safe-area-inset-top)]">
-      {/* Header */}
       <div className="flex justify-between items-center px-4 py-4 border-b border-[#2c2c2c] bg-zinc-900">
-        <button onClick={onCancel} className="text-blue-500 font-medium text-lg px-2 active:opacity-50">Cancel</button>
-        <h2 className="text-lg font-bold uppercase tracking-widest text-zinc-400">{song ? 'Edit Song' : 'New Song'}</h2>
-        <button onClick={handleSave} className="text-blue-500 font-bold text-lg px-2 active:opacity-50">Save</button>
+        <button onClick={onCancel} className="text-blue-500 font-medium text-lg px-2">Cancel</button>
+        <h2 className="text-lg font-bold uppercase tracking-widest text-zinc-400">Editor</h2>
+        <button onClick={() => onSave({ title, artist, content })} className="text-blue-500 font-bold text-lg px-2">Save</button>
       </div>
 
       <div className="flex-1 flex flex-col space-y-0 overflow-y-auto bg-black relative">
@@ -115,28 +90,13 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
             placeholder="Artist / Author"
             value={artist}
             onChange={(e) => handleArtistChange(e.target.value)}
-            onFocus={() => handleArtistChange(artist)}
             autoComplete="off"
           />
-          
-          {/* Suggestions Dropdown */}
           {showSuggestions && (
-            <div className="absolute left-0 right-0 bg-zinc-900 border-b border-white/10 z-[160] shadow-2xl animate-in fade-in slide-in-from-top-1 overflow-hidden">
+            <div className="absolute left-0 right-0 bg-zinc-900 border-b border-white/10 z-[160] shadow-2xl">
               {suggestions.map((s, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  // Используем onMouseDown вместо onClick для мгновенного срабатывания перед потерей фокуса
-                  onMouseDown={(e) => {
-                    e.preventDefault(); // Предотвращаем потерю фокуса инпутом
-                    selectSuggestion(s);
-                  }}
-                  className="w-full text-left px-6 py-4 text-white bg-zinc-900 hover:bg-zinc-800 border-b border-white/5 active:bg-blue-600 transition-colors flex items-center justify-between"
-                >
+                <button key={idx} onMouseDown={() => { setArtist(s); setShowSuggestions(false); }} className="w-full text-left px-6 py-4 text-white border-b border-white/5 active:bg-blue-600">
                   <span className="font-semibold">{s}</span>
-                  <svg className="w-4 h-4 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                  </svg>
                 </button>
               ))}
             </div>
@@ -145,35 +105,38 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
 
         <textarea 
           className="flex-1 bg-black p-6 text-[16px] mono-grid resize-none border-none focus:ring-0 placeholder:text-zinc-800 text-zinc-200 leading-relaxed min-h-[300px] outline-none"
-          placeholder="Paste your chords and lyrics here...&#10;&#10;C        G&#10;Hello my friend..."
+          placeholder="C        G\nHello my friend..."
           value={content}
           onChange={(e) => setContent(e.target.value)}
           spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
         />
         
-        {/* Delete Section */}
-        {song && onDelete && (
-          <div className="p-6 bg-[#121212] border-t border-white/5 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        <div className="p-6 bg-[#121212] border-t border-white/5 pb-[calc(2rem+env(safe-area-inset-bottom))] space-y-3">
+          <button 
+            onClick={handleShare}
+            className="w-full py-5 rounded-2xl font-black text-sm bg-blue-600/10 text-blue-500 border border-blue-500/20 active:bg-blue-600 active:text-white transition-all flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            {shareStatus === 'copied' ? 'LINK COPIED!' : 'SHARE SONG LINK'}
+          </button>
+
+          {song && onDelete && (
             <button 
-                type="button"
-                onClick={initiateDelete}
-                className={`w-full py-5 rounded-2xl font-black text-sm transition-all duration-200 transform active:scale-[0.98] border ${
-                  isConfirmingDelete 
-                    ? 'bg-red-600 text-white border-red-500 shadow-[0_0_20px_rgba(220,38,38,0.4)]' 
-                    : 'bg-red-500/10 text-red-500 border-red-500/20 active:bg-red-500/20'
-                }`}
+                onClick={(e) => {
+                    if (isConfirmingDelete) onDelete(song.id);
+                    else {
+                        setIsConfirmingDelete(true);
+                        setTimeout(() => setIsConfirmingDelete(false), 3000);
+                    }
+                }}
+                className={`w-full py-5 rounded-2xl font-black text-sm border transition-all ${isConfirmingDelete ? 'bg-red-600 text-white border-red-500' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}
             >
-                {isConfirmingDelete ? 'TAP AGAIN TO CONFIRM DELETE' : 'DELETE SONG'}
+                {isConfirmingDelete ? 'CONFIRM DELETE' : 'DELETE SONG'}
             </button>
-            {isConfirmingDelete && (
-                <p className="text-center text-zinc-600 text-[10px] mt-3 font-bold uppercase tracking-widest animate-pulse">
-                  Canceling in 3 seconds...
-                </p>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

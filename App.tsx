@@ -12,11 +12,39 @@ const App: React.FC = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [state, setState] = useState<AppState>(AppState.LIST);
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    setSongs(storageService.getSongs());
+    const loadedSongs = storageService.getSongs();
+    if (loadedSongs.length === 0) {
+      const defaults = storageService.getDefaultSongs();
+      setSongs(defaults);
+      storageService.saveSongs(defaults);
+    } else {
+      setSongs(loadedSongs);
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const importData = params.get('import');
+    if (importData) {
+      const decoded = storageService.decodeSongFromUrl(importData);
+      if (decoded && decoded.title) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setSongs(prev => {
+            const exists = prev.find(s => s.title === decoded.title && s.artist === decoded.artist);
+            if (exists) {
+                setToast(`Song already in library`);
+                return prev;
+            }
+            const newSong = { ...decoded, id: Date.now().toString() } as Song;
+            const updated = [newSong, ...prev];
+            storageService.saveSongs(updated);
+            setToast(`Imported: ${decoded.title}`);
+            return updated;
+        });
+      }
+    }
     
-    // Блокировка резинового скролла на уровне body для iOS PWA
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';
@@ -28,10 +56,12 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const handleAddSong = () => {
-    setCurrentSongId(null);
-    setState(AppState.EDIT);
-  };
+  useEffect(() => {
+    if (toast) {
+        const t = setTimeout(() => setToast(null), 3000);
+        return () => clearTimeout(t);
+    }
+  }, [toast]);
 
   const handleSelectSong = (song: Song) => {
     setCurrentSongId(song.id);
@@ -50,7 +80,7 @@ const App: React.FC = () => {
         content: songData.content || '',
         transpose: 0
       };
-      newSongs = [...songs, newSong];
+      newSongs = [newSong, ...songs];
     }
     setSongs(newSongs);
     storageService.saveSongs(newSongs);
@@ -65,12 +95,6 @@ const App: React.FC = () => {
     setState(AppState.LIST);
   };
 
-  const handleUpdateTranspose = (id: string, transpose: number) => {
-    const newSongs = songs.map(s => s.id === id ? { ...s, transpose } : s);
-    setSongs(newSongs);
-    storageService.saveSongs(newSongs);
-  };
-
   const currentSong = songs.find(s => s.id === currentSongId);
   const existingArtists = Array.from(new Set(songs.map(s => s.artist))).sort();
 
@@ -81,7 +105,8 @@ const App: React.FC = () => {
           <SongList 
             songs={songs} 
             onSelect={handleSelectSong} 
-            onAdd={handleAddSong}
+            onAdd={() => { setCurrentSongId(null); setState(AppState.EDIT); }}
+            onExportSuccess={(msg) => setToast(msg)}
           />
         )}
 
@@ -90,10 +115,7 @@ const App: React.FC = () => {
             song={currentSong} 
             existingArtists={existingArtists}
             onSave={handleSaveSong} 
-            onCancel={() => {
-                if (currentSongId) setState(AppState.PERFORMANCE);
-                else setState(AppState.LIST);
-            }}
+            onCancel={() => currentSongId ? setState(AppState.PERFORMANCE) : setState(AppState.LIST)}
             onDelete={handleDeleteSong}
           />
         )}
@@ -103,50 +125,35 @@ const App: React.FC = () => {
             song={currentSong} 
             onClose={() => setState(AppState.LIST)}
             onEdit={() => setState(AppState.EDIT)}
-            onUpdateTranspose={handleUpdateTranspose}
+            onUpdateTranspose={(id, tr) => {
+                const updated = songs.map(s => s.id === id ? { ...s, transpose: tr } : s);
+                setSongs(updated);
+                storageService.saveSongs(updated);
+            }}
           />
         )}
 
-        {state === AppState.DICTIONARY && (
-          <ChordDictionary />
-        )}
-
-        {state === AppState.TUNER && (
-          <Tuner />
-        )}
+        {state === AppState.DICTIONARY && <ChordDictionary />}
+        {state === AppState.TUNER && <Tuner />}
       </div>
+
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[300] bg-blue-600 text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl animate-in slide-in-from-top duration-300">
+            {toast}
+        </div>
+      )}
 
       {(state === AppState.LIST || state === AppState.DICTIONARY || state === AppState.TUNER) && (
         <div className="h-[calc(60px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 pb-[env(safe-area-inset-bottom)] z-[100] shrink-0">
-          <button 
-            onClick={() => setState(AppState.LIST)}
-            className={`flex flex-col items-center gap-1 transition-colors flex-1 ${state === AppState.LIST ? 'text-blue-500' : 'text-zinc-500'}`}
-          >
-            <div className={`w-1.5 h-1.5 rounded-full ${state === AppState.LIST ? 'bg-blue-500' : 'bg-transparent'}`} />
+          <button onClick={() => setState(AppState.LIST)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.LIST ? 'text-blue-500' : 'text-zinc-500'}`}>
             <span className="text-[10px] font-black uppercase tracking-widest">Songs</span>
           </button>
-          
-          <button 
-            onClick={() => setState(AppState.DICTIONARY)}
-            className={`flex flex-col items-center gap-1 transition-colors flex-1 ${state === AppState.DICTIONARY ? 'text-blue-500' : 'text-zinc-500'}`}
-          >
-            <div className={`w-1.5 h-1.5 rounded-full ${state === AppState.DICTIONARY ? 'bg-blue-500' : 'bg-transparent'}`} />
+          <button onClick={() => setState(AppState.DICTIONARY)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.DICTIONARY ? 'text-blue-500' : 'text-zinc-500'}`}>
             <span className="text-[10px] font-black uppercase tracking-widest">Circle</span>
           </button>
-
-          <button 
-            onClick={() => setState(AppState.TUNER)}
-            className={`flex flex-col items-center gap-1 transition-colors flex-1 ${state === AppState.TUNER ? 'text-blue-500' : 'text-zinc-500'}`}
-          >
-            <div className={`w-1.5 h-1.5 rounded-full ${state === AppState.TUNER ? 'bg-blue-500' : 'bg-transparent'}`} />
+          <button onClick={() => setState(AppState.TUNER)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.TUNER ? 'text-blue-500' : 'text-zinc-500'}`}>
             <span className="text-[10px] font-black uppercase tracking-widest">Tuner</span>
           </button>
-        </div>
-      )}
-      
-      {!navigator.onLine && (
-        <div className="fixed top-0 left-0 right-0 bg-orange-600 text-[8px] font-black text-center py-0.5 z-[200] tracking-widest">
-          OFFLINE MODE
         </div>
       )}
     </div>

@@ -7,12 +7,14 @@ const normalizationMap: { [key: string]: string } = {
 };
 
 /**
- * Регулярное выражение для обнаружения аккордов в тексте.
- * Улучшено для поддержки сложных комбинаций типа A7sus4, m7b5, maj9.
+ * Улучшенный поиск аккордов.
+ * Ищет последовательности типа F#m, C#maj7, Bb, не обрезая символы # и b.
  */
-export const chordRegex = /\b[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*(?![a-zA-Z0-9#b])/g;
+export const chordRegex = /(?<=^|[\s\[])([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)(?=[\s\]]|$)/g;
+export const chordSplitRegex = /((?<=^|[\s\[])[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*(?=[\s\]]|$))/g;
 
 export const transposeChord = (chord: string, semitones: number): string => {
+  // Находим корень аккорда (буква + опционально # или b)
   const match = chord.match(/^([A-G][#b]?)(.*)$/);
   if (!match) return chord;
 
@@ -34,5 +36,5 @@ export const transposeChord = (chord: string, semitones: number): string => {
 
 export const transposeText = (text: string, semitones: number): string => {
   if (semitones === 0) return text;
-  return text.replace(chordRegex, (chord) => transposeChord(chord, semitones));
+  return text.replace(chordRegex, (match) => transposeChord(match, semitones));
 };
