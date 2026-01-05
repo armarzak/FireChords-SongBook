@@ -33,6 +33,7 @@ const App: React.FC = () => {
       setState(AppState.AUTH);
     }
     
+    // Блокировка скролла для iOS
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';
@@ -51,17 +52,30 @@ const App: React.FC = () => {
   const initApp = async (u: User) => {
     setIsSyncing(true);
     try {
+      // 1. Сначала загружаем то, что есть в телефоне
       const local = await storageService.getSongsLocal();
       if (local.length > 0) setSongs(local);
+
+      // 2. Проверяем облако
       if (storageService.isCloudEnabled()) {
         const cloud = await storageService.restoreLibraryFromCloud(u);
-        if (cloud) {
+        
+        if (cloud !== null) {
           setIsOnline(true);
-          setSongs(cloud);
-          await storageService.saveSongsBulk(cloud);
+          
+          if (cloud.length > 0) {
+            // Если в облаке что-то есть - это наш приоритет
+            setSongs(cloud);
+            await storageService.saveSongsBulk(cloud);
+          } else if (local.length > 0) {
+            // Если в облаке пусто, а локально есть песни - заливаем их в облако
+            console.log("[Sync] Empty cloud, pushing local data...");
+            await storageService.syncLibraryWithCloud(local, u);
+          }
         }
       }
     } catch (e) {
+      console.error("[App] Init error:", e);
       setIsOnline(false);
     } finally {
       setIsSyncing(false);
@@ -80,7 +94,6 @@ const App: React.FC = () => {
     setState(AppState.LIST);
   };
 
-  // Вычисляем список уникальных артистов для автодополнения
   const existingArtists = useMemo(() => {
     const artists = songs.map(s => s.artist).filter(a => a && a.trim() !== '');
     return Array.from(new Set(artists)).sort();
@@ -132,18 +145,11 @@ const App: React.FC = () => {
                 : [newSong, ...songs];
 
               setSongs(updatedSongsList);
-              
-              // 1. Сохраняем локально (Dexie)
               await storageService.saveSongLocal(newSong);
               
-              // 2. Синхронизируем с облаком (SQL)
               if (user) {
                 const cloudResult = await storageService.syncLibraryWithCloud(updatedSongsList, user);
-                if (cloudResult.success) {
-                  setIsOnline(true);
-                } else {
-                  console.warn("Cloud sync failed on save:", cloudResult.error);
-                }
+                if (cloudResult.success) setIsOnline(true);
               }
 
               setCurrentSongId(null);

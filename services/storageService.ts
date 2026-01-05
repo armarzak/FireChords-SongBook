@@ -16,6 +16,15 @@ try {
   console.error("Supabase Init error:", e);
 }
 
+// Запрос на персистентное хранилище (специфично для iOS/PWA)
+const requestPersistence = async () => {
+  if (navigator.storage && navigator.storage.persist) {
+    const isPersisted = await navigator.storage.persist();
+    console.log(`[Storage] Persisted: ${isPersisted}`);
+  }
+};
+requestPersistence();
+
 export interface SongbookDatabase extends Dexie {
   songs: Table<Song>;
 }
@@ -62,11 +71,13 @@ export const storageService = {
   },
 
   saveUser: (stageName: string): User => {
+    // Пытаемся сохранить ID пользователя, если он уже был (для восстановления из Dexie)
+    const existing = storageService.getUser();
     const newUser: User = {
-      id: 'u-' + Math.random().toString(36).substr(2, 9),
+      id: existing?.id || 'u-' + Math.random().toString(36).substr(2, 9),
       stageName,
-      joinedAt: new Date().toISOString(),
-      avatarColor: '#3b82f6'
+      joinedAt: existing?.joinedAt || new Date().toISOString(),
+      avatarColor: existing?.avatarColor || '#3b82f6'
     };
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
     return newUser;
@@ -81,6 +92,7 @@ export const storageService = {
   },
 
   saveSongsBulk: async (songs: Song[]) => {
+    if (songs.length === 0) return;
     return await db.songs.bulkPut(songs);
   },
 
@@ -93,7 +105,7 @@ export const storageService = {
   },
 
   syncLibraryWithCloud: async (songs: Song[], user: User): Promise<{success: boolean, error?: string}> => {
-    if (!supabase) return { success: false, error: 'No connection' };
+    if (!supabase || songs.length === 0) return { success: true };
     try {
       const payload = songs.map(s => mapToDb(s, user.id));
       const { error } = await supabase.from('songs').upsert(payload);
@@ -112,7 +124,10 @@ export const storageService = {
     if (!supabase) return null;
     try {
       const { data, error } = await supabase.from('songs').select('*').eq('user_id', user.id);
-      if (error) return null;
+      if (error) {
+        console.error("Restore Error:", error);
+        return null;
+      }
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
       return null;
@@ -127,10 +142,7 @@ export const storageService = {
         .select('*')
         .eq('is_public', true)
         .order('created_at', { ascending: false });
-      if (error) {
-        console.error("Forum fetch error:", error);
-        return [];
-      }
+      if (error) return [];
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
       return [];
@@ -140,7 +152,6 @@ export const storageService = {
   publishToForum: async (song: Song, user: User): Promise<{success: boolean, error?: string}> => {
     if (!supabase) return { success: false, error: 'Supabase not initialized' };
     try {
-      // Для доски создаем уникальный ID, чтобы избежать конфликтов при повторной публикации
       const publishedSong = { 
         ...song, 
         id: song.id.startsWith('pub-') ? song.id : `pub-${song.id}-${Date.now()}`,
@@ -149,23 +160,11 @@ export const storageService = {
         authorId: user.id 
       };
       const payload = mapToDb(publishedSong, user.id);
-      
       const { error } = await supabase.from('songs').insert(payload);
-      
-      if (error) {
-        console.error("Board Publish Error:", error);
-        return { success: false, error: error.message };
-      }
+      if (error) return { success: false, error: error.message };
       return { success: true };
     } catch (e: any) {
-      console.error("Board Publish Exception:", e);
-      return { success: false, error: e.message || 'Unknown network error' };
+      return { success: false, error: e.message || 'Network error' };
     }
-  },
-
-  copyLibraryAsCode: async () => {
-    const songs = await storageService.getSongsLocal();
-    await navigator.clipboard.writeText(JSON.stringify(songs, null, 2));
-    return true;
   }
 };
