@@ -31,7 +31,6 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
         } else {
             label = song.artist.trim() || 'Unknown Artist';
         }
-        
         if (!acc[label]) acc[label] = [];
         acc[label].push(song);
         return acc;
@@ -49,19 +48,16 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
         <div className="flex justify-between items-center px-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-black tracking-tight text-white">Library</h1>
-            <div className="flex items-center gap-1.5">
-               <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${isSyncing ? 'bg-blue-500/10 border-blue-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}></div>
-                <span className={`text-[8px] font-black uppercase ${isSyncing ? 'text-blue-500' : 'text-green-500'}`}>
-                  {isSyncing ? 'SQL Sync' : 'SQL DB'}
-                </span>
-              </div>
+            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${isSyncing ? 'bg-blue-500/10 border-blue-500/20' : 'bg-indigo-500/10 border-indigo-500/20'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-blue-400 animate-pulse' : 'bg-indigo-500'}`}></div>
+              <span className={`text-[8px] font-black uppercase ${isSyncing ? 'text-blue-400' : 'text-indigo-400'}`}>
+                {isSyncing ? 'Postgres Sync' : 'Supabase Cloud'}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button 
                 onClick={onSyncManual}
-                title="Backup to Cloud"
                 className="p-2 bg-zinc-800 rounded-full text-zinc-400 active:text-blue-500 transition-colors"
             >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,7 +65,7 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
                 </svg>
             </button>
             <button 
-                onClick={async () => { await storageService.copyLibraryAsCode(); onExportSuccess('Library exported'); }}
+                onClick={async () => { await storageService.copyLibraryAsCode(); onExportSuccess('SQL Snapshot Copied'); }}
                 className="p-2 bg-zinc-800 rounded-full text-zinc-400 active:text-blue-500 transition-colors"
             >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,21 +79,17 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
             <button 
               onClick={() => setViewMode(ViewMode.SONGS)} 
               className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${viewMode === ViewMode.SONGS ? 'bg-zinc-700 text-white' : 'text-zinc-500'}`}
-            >
-              SONGS
-            </button>
+            >SONGS</button>
             <button 
               onClick={() => setViewMode(ViewMode.ARTISTS)} 
               className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${viewMode === ViewMode.ARTISTS ? 'bg-zinc-700 text-white' : 'text-zinc-500'}`}
-            >
-              ARTISTS
-            </button>
+            >ARTISTS</button>
         </div>
 
         <div className="relative">
           <input 
             type="text" 
-            placeholder="Search your library..." 
+            placeholder="Search your Postgres library..." 
             className="w-full bg-[#1c1c1e] border-none rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-zinc-600 outline-none focus:ring-1 focus:ring-blue-500/50"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -109,38 +101,33 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
       </div>
 
       <div className="flex-1 overflow-y-auto pb-32 scroll-smooth">
-        {processedData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 px-10 text-center">
-                <p className="text-zinc-600 font-bold mb-1">No songs yet</p>
-                <p className="text-zinc-800 text-xs uppercase tracking-widest">Add your first song using the + button</p>
-            </div>
-        ) : (
-            processedData.map(group => (
+        {processedData.map(group => (
             <div key={group.label}>
-                <div className="sticky top-0 bg-[#121212]/95 backdrop-blur-xl px-4 py-1.5 border-b border-white/5 z-10">
-                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{group.label}</span>
+                <div className="sticky top-0 bg-[#121212]/95 backdrop-blur-xl px-4 py-1.5 border-b border-white/5 z-10 flex justify-between items-center">
+                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{group.label}</span>
                 </div>
                 <div className="px-4">
                 {group.songs.map(song => (
                     <button 
                         key={song.id} 
                         onClick={() => onSelect(song)} 
-                        className="w-full text-left py-4 border-b border-white/5 active:bg-white/5 transition-colors px-2 rounded-lg my-1"
+                        className="w-full text-left py-4 border-b border-white/5 active:bg-white/5 transition-colors px-2 rounded-lg my-1 flex justify-between items-center"
                     >
-                        <div className="text-[17px] font-bold text-zinc-100">{song.title}</div>
-                        <div className="text-sm text-zinc-500 font-medium">{song.artist}</div>
+                        <div>
+                            <div className="text-[17px] font-bold text-zinc-100">{song.title}</div>
+                            <div className="text-sm text-zinc-500 font-medium">{song.artist}</div>
+                        </div>
+                        {song.id.startsWith('pub-') && (
+                            <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
+                        )}
                     </button>
                 ))}
                 </div>
             </div>
-            ))
-        )}
+        ))}
       </div>
 
-      <button 
-        onClick={onAdd} 
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+84px)] right-6 w-14 h-14 bg-blue-600 rounded-full shadow-2xl flex items-center justify-center text-white active:scale-90 transition-transform z-50 shadow-blue-600/40"
-      >
+      <button onClick={onAdd} className="fixed bottom-[calc(env(safe-area-inset-bottom)+84px)] right-6 w-14 h-14 bg-blue-600 rounded-full shadow-2xl flex items-center justify-center text-white active:scale-90 transition-transform z-50">
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v12m6-6H6" />
         </svg>
