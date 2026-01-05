@@ -1,15 +1,35 @@
 
-import { Song } from '../types';
+import { Song, User } from '../types';
 
 const STORAGE_KEY = 'guitar_songbook_songs';
-/** 
- * НОВЫЙ ID хранилища npoint.io. 
- * Если база будет переполнена, создайте новый бин на npoint.io и замените этот ID.
- */
+const USER_KEY = 'guitar_songbook_user';
 const CLOUD_BIN_ID = 'f7478d103b41846b0a70'; 
 const CLOUD_BIN_URL = `https://api.npoint.io/${CLOUD_BIN_ID}`; 
 
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
 export const storageService = {
+  // User Profile
+  getUser: (): User | null => {
+    const data = localStorage.getItem(USER_KEY);
+    return data ? JSON.parse(data) : null;
+  },
+
+  saveUser: (stageName: string): User => {
+    const existing = storageService.getUser();
+    if (existing) return existing;
+
+    const newUser: User = {
+      id: 'user-' + Math.random().toString(36).substr(2, 9),
+      stageName,
+      joinedAt: new Date().toISOString(),
+      avatarColor: COLORS[Math.floor(Math.random() * COLORS.length)]
+    };
+    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+    return newUser;
+  },
+
+  // Songs
   getSongs: (): Song[] => {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) return [];
@@ -20,7 +40,6 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
   },
 
-  // Загрузка песен из облака (Форум)
   fetchForumSongs: async (): Promise<Song[]> => {
     try {
       const response = await fetch(CLOUD_BIN_URL, {
@@ -37,10 +56,9 @@ export const storageService = {
     }
   },
 
-  // Публикация на форум
-  publishToForum: async (song: Song): Promise<boolean> => {
+  publishToForum: async (song: Song, user: User): Promise<boolean> => {
     try {
-      // 1. Получаем текущее состояние базы
+      // 1. Получаем текущее состояние доски
       let currentForum: Song[] = [];
       try {
         const getRes = await fetch(CLOUD_BIN_URL);
@@ -49,92 +67,112 @@ export const storageService = {
           currentForum = Array.isArray(data) ? data : [];
         }
       } catch (e) {
-        console.warn("Could not fetch forum, might be empty");
+        console.warn("Could not fetch existing forum, starting fresh", e);
       }
 
-      // 2. Проверяем дубликат
-      const isDuplicate = currentForum.some(s => 
-        s.title.toLowerCase().trim() === song.title.toLowerCase().trim() && 
-        s.artist.toLowerCase().trim() === song.artist.toLowerCase().trim()
-      );
-      if (isDuplicate) return true;
-
-      // 3. Формируем запись
-      const newEntry = {
-        id: 'c-' + Date.now() + Math.random().toString(36).substr(2, 4),
+      // 2. Создаем чистую запись без лишних полей
+      const newEntry: Song = {
+        id: 'cp-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
         title: song.title.trim(),
-        artist: song.artist.trim() || 'Anonymous',
+        artist: song.artist.trim() || 'Various Artists',
         content: song.content,
+        capo: song.capo || 0,
+        tuning: song.tuning || 'Standard',
         transpose: 0,
-        publishDate: new Date().toISOString(),
-        likes: Math.floor(Math.random() * 5) // Немного начальных лайков для красоты
+        authorName: user.stageName,
+        authorId: user.id,
+        createdAt: new Date().toISOString(),
+        likes: 0
       };
 
+      // 3. Добавляем в начало и ограничиваем список (например, 50 последних)
       const updatedForum = [newEntry, ...currentForum].slice(0, 50);
 
-      // 4. Отправляем ПОЛНЫЙ список (npoint заменяет содержимое бина при POST/PUT)
+      // 4. Отправляем обновленный список на сервер
       const response = await fetch(CLOUD_BIN_URL, {
-        method: 'POST', // npoint использует POST для обновления по ID
+        method: 'POST', // npoint.io использует POST для обновления содержимого бина по его ID
         headers: { 
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify(updatedForum)
       });
 
-      return response.ok;
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("Server responded with error:", response.status, errText);
+        return false;
+      }
+
+      return true;
     } catch (e) {
       console.error("Critical Publish Error:", e);
       return false;
     }
   },
 
-  copyLibraryAsCode: () => {
-    const songs = storageService.getSongs();
-    const code = JSON.stringify(songs, null, 2);
-    navigator.clipboard.writeText(code).catch(err => {
-      console.error('Could not copy text: ', err);
+  generateShareLink: (song: Song): string => {
+    const data = JSON.stringify({
+      t: song.title,
+      a: song.artist,
+      c: song.content,
+      cp: song.capo || 0,
+      tu: song.tuning || 'Standard',
+      au: song.authorName || 'Anonymous'
     });
+    const encoded = btoa(unescape(encodeURIComponent(data)));
+    return `${window.location.origin}${window.location.pathname}?post=${encoded}`;
   },
 
-  exportDataFile: () => {
-    const songs = storageService.getSongs();
-    const dataStr = JSON.stringify(songs, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `songbook_backup_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  decodePostFromUrl: (base64: string): Song | null => {
+    try {
+      const json = decodeURIComponent(escape(atob(base64)));
+      const d = JSON.parse(json);
+      return {
+        id: 'shared-' + Date.now(),
+        title: d.t,
+        artist: d.a,
+        content: d.c,
+        capo: d.cp,
+        tuning: d.tu,
+        authorName: d.au,
+        transpose: 0
+      };
+    } catch (e) {
+      return null;
+    }
   },
 
   getDefaultSongs: (): Song[] => [
     {
       id: 'default-1',
-      title: 'Hotel California',
-      artist: 'Eagles',
+      title: 'Imagine',
+      artist: 'John Lennon',
       transpose: 0,
-      content: `[Intro]\nBm  F#  A  E  G  D  Em  F#\n\n[Verse 1]\nBm                     F#\nOn a dark desert highway, cool wind in my hair\nA                      E\nWarm smell of colitas, rising up through the air`
+      content: `[Intro]\nC  Cmaj7  F\n\n[Verse]\nC            Cmaj7    F\nImagine there's no heaven\nC            Cmaj7    F\nIt's easy if you try`,
+      capo: 0,
+      tuning: 'Standard',
+      authorName: 'System'
     }
   ],
 
-  encodeSongForUrl: (song: Song): string => {
-    const data = JSON.stringify({ t: song.title, a: song.artist, c: song.content });
-    return btoa(unescape(encodeURIComponent(data)));
+  copyLibraryAsCode: () => {
+    const songs = storageService.getSongs();
+    const data = JSON.stringify(songs, null, 2);
+    navigator.clipboard.writeText(data).catch(err => console.error(err));
   },
 
-  decodeSongFromUrl: (base64: string): Partial<Song> | null => {
-    try {
-        const json = decodeURIComponent(escape(atob(base64)));
-        const data = JSON.parse(json);
-        return {
-            title: data.t, artist: data.a, content: data.c,
-            id: 'shared-' + Date.now(), transpose: 0
-        };
-    } catch (e) {
-        return null;
-    }
+  exportDataFile: () => {
+    const songs = storageService.getSongs();
+    const data = JSON.stringify(songs, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `songbook-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 };

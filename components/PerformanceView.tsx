@@ -25,38 +25,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
   
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollIntervalRef = useRef<number | null>(null);
-  const preciseScrollTopRef = useRef<number>(0);
-  const lastFrameTimeRef = useRef<number>(0);
-
-  const handleScrollFrame = useCallback((time: number) => {
-    if (!containerRef.current) return;
-    if (!lastFrameTimeRef.current) {
-      lastFrameTimeRef.current = time;
-      scrollIntervalRef.current = requestAnimationFrame(handleScrollFrame);
-      return;
-    }
-    const deltaTime = time - lastFrameTimeRef.current;
-    lastFrameTimeRef.current = time;
-    const increment = (scrollSpeed / 100) * 0.5 * (deltaTime / 16.6); 
-    preciseScrollTopRef.current += increment;
-    containerRef.current.scrollTop = preciseScrollTopRef.current;
-    if (containerRef.current.scrollTop + containerRef.current.clientHeight >= containerRef.current.scrollHeight - 2) {
-      setScrolling(false);
-    } else {
-      scrollIntervalRef.current = requestAnimationFrame(handleScrollFrame);
-    }
-  }, [scrollSpeed]);
-
-  useEffect(() => {
-    if (scrolling) {
-      setPopover(null);
-      lastFrameTimeRef.current = 0;
-      scrollIntervalRef.current = requestAnimationFrame(handleScrollFrame);
-    } else {
-      if (scrollIntervalRef.current) cancelAnimationFrame(scrollIntervalRef.current);
-    }
-    return () => { if (scrollIntervalRef.current) cancelAnimationFrame(scrollIntervalRef.current); };
-  }, [scrolling, handleScrollFrame]);
 
   const renderContent = () => {
     const text = transposeText(song.content, transpose);
@@ -120,7 +88,16 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       >
         <div className="mb-10" style={{ fontSize: '1rem', fontFamily: 'sans-serif' }}>
             <h1 className="text-4xl font-black mb-1">{song.title}</h1>
-            <p className="text-xl text-zinc-500">{song.artist}</p>
+            <p className="text-xl text-zinc-500 mb-4">{song.artist}</p>
+            {(song.capo || song.tuning) && (
+              <div className="flex gap-4">
+                {song.capo ? <span className="bg-blue-600/20 text-blue-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Capo {song.capo}</span> : null}
+                {song.tuning ? <span className="bg-zinc-800 text-zinc-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{song.tuning}</span> : null}
+              </div>
+            )}
+            {song.authorName && (
+              <p className="text-xs text-zinc-600 mt-2 font-bold uppercase tracking-widest">Shared by: {song.authorName}</p>
+            )}
         </div>
         <div className="leading-[1.65] pb-32">{renderContent()}</div>
       </div>
@@ -149,7 +126,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
 
       <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-3xl border-t border-zinc-800 px-6 pb-[calc(15px+env(safe-area-inset-bottom))] pt-5 flex flex-col gap-4 z-[130]">
         <button onClick={() => setScrolling(!scrolling)} className={`w-full py-4 rounded-2xl font-black text-lg ${scrolling ? 'bg-red-500' : 'bg-blue-600'}`}>
-          {scrolling ? 'STOP' : 'START AUTO-SCROLL'}
+          {scrolling ? 'STOP' : 'AUTO-SCROLL'}
         </button>
       </div>
       <ChordPanel chords={[]} isOpen={isChordPanelOpen} onClose={() => setIsChordPanelOpen(false)} />

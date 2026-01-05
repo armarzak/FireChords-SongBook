@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Song, AppState } from './types';
+import { Song, AppState, User } from './types';
 import { storageService } from './services/storageService';
 import { SongList } from './components/SongList';
 import { SongEditor } from './components/SongEditor';
@@ -8,14 +8,24 @@ import { PerformanceView } from './components/PerformanceView';
 import { ChordDictionary } from './components/ChordDictionary';
 import { Tuner } from './components/Tuner';
 import { CommunityFeed } from './components/CommunityFeed';
+import { LoginScreen } from './components/LoginScreen';
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
   const [state, setState] = useState<AppState>(AppState.LIST);
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [sharedSong, setSharedSong] = useState<Song | null>(null);
 
   useEffect(() => {
+    const currentUser = storageService.getUser();
+    if (currentUser) {
+      setUser(currentUser);
+    } else {
+      setState(AppState.AUTH);
+    }
+
     const loadedSongs = storageService.getSongs();
     if (loadedSongs.length === 0) {
       const defaults = storageService.getDefaultSongs();
@@ -26,12 +36,13 @@ const App: React.FC = () => {
     }
 
     const params = new URLSearchParams(window.location.search);
-    const importData = params.get('import');
-    if (importData) {
-      const decoded = storageService.decodeSongFromUrl(importData);
-      if (decoded && decoded.title) {
+    const postData = params.get('post');
+    if (postData) {
+      const decoded = storageService.decodePostFromUrl(postData);
+      if (decoded) {
+        setSharedSong(decoded);
+        setState(AppState.PERFORMANCE);
         window.history.replaceState({}, document.title, window.location.pathname);
-        handleImportSong(decoded as Song);
       }
     }
     
@@ -53,70 +64,77 @@ const App: React.FC = () => {
     }
   }, [toast]);
 
+  const handleLogin = (name: string) => {
+    const newUser = storageService.saveUser(name);
+    setUser(newUser);
+    setState(AppState.LIST);
+    setToast(`Welcome, ${name}!`);
+  };
+
   const handleImportSong = (song: Song) => {
     setSongs(prev => {
         const exists = prev.find(s => s.title === song.title && s.artist === song.artist);
         if (exists) {
-            setToast(`Already in your library`);
+            setToast(`Already in library`);
             return prev;
         }
-        const newSong = { ...song, id: Date.now().toString(), likes: 0 } as Song;
+        const newSong = { ...song, id: Date.now().toString() } as Song;
         const updated = [newSong, ...prev];
         storageService.saveSongs(updated);
-        setToast(`Added to Library: ${song.title}`);
+        setToast(`Imported: ${song.title}`);
         return updated;
     });
   };
 
-  const handleSelectSong = (song: Song) => {
-    setCurrentSongId(song.id);
-    setState(AppState.PERFORMANCE);
-  };
+  const handleSaveSong = async (songData: Partial<Song>) => {
+    let updatedSongs;
+    const songId = currentSongId || Date.now().toString();
+    
+    const newSong: Song = {
+      id: songId,
+      title: songData.title || 'Untitled',
+      artist: songData.artist || 'Unknown',
+      content: songData.content || '',
+      transpose: 0,
+      capo: songData.capo || 0,
+      tuning: songData.tuning || 'Standard',
+      authorName: user?.stageName || 'Anonymous',
+      authorId: user?.id
+    };
 
-  const handleSaveSong = (songData: Partial<Song>) => {
-    let newSongs;
     if (currentSongId) {
-      newSongs = songs.map(s => s.id === currentSongId ? { ...s, ...songData } as Song : s);
+      updatedSongs = songs.map(s => s.id === currentSongId ? { ...s, ...songData } as Song : s);
     } else {
-      const newSong: Song = {
-        id: Date.now().toString(),
-        title: songData.title || 'Untitled',
-        artist: songData.artist || 'Unknown',
-        content: songData.content || '',
-        transpose: 0
-      };
-      newSongs = [newSong, ...songs];
+      updatedSongs = [newSong, ...songs];
     }
-    setSongs(newSongs);
-    storageService.saveSongs(newSongs);
+
+    setSongs(updatedSongs);
+    storageService.saveSongs(updatedSongs);
     setState(AppState.LIST);
   };
 
-  const handleDeleteSong = (id: string) => {
-    const newSongs = songs.filter(s => s.id !== id);
-    setSongs(newSongs);
-    storageService.saveSongs(newSongs);
-    setCurrentSongId(null);
-    setState(AppState.LIST);
-  };
-
-  const currentSong = songs.find(s => s.id === currentSongId);
+  const currentSong = sharedSong || songs.find(s => s.id === currentSongId);
   const existingArtists = Array.from(new Set(songs.map(s => s.artist))).sort();
 
   return (
     <div className="h-full w-full overflow-hidden bg-[#121212] text-white select-none flex flex-col fixed inset-0">
+      {state === AppState.AUTH && <LoginScreen onLogin={handleLogin} />}
+
       <div className="flex-1 relative overflow-hidden">
         {state === AppState.LIST && (
           <SongList 
             songs={songs} 
-            onSelect={handleSelectSong} 
-            onAdd={() => { setCurrentSongId(null); setState(AppState.EDIT); }}
+            onSelect={(s) => { setCurrentSongId(s.id); setSharedSong(null); setState(AppState.PERFORMANCE); }} 
+            onAdd={() => { setCurrentSongId(null); setSharedSong(null); setState(AppState.EDIT); }}
             onExportSuccess={(msg) => setToast(msg)}
           />
         )}
 
         {state === AppState.FORUM && (
-          <CommunityFeed onImport={handleImportSong} />
+          <CommunityFeed 
+            onImport={handleImportSong} 
+            onView={(song) => { setSharedSong(song); setState(AppState.PERFORMANCE); }} 
+          />
         )}
 
         {state === AppState.EDIT && (
@@ -124,8 +142,13 @@ const App: React.FC = () => {
             song={currentSong} 
             existingArtists={existingArtists}
             onSave={handleSaveSong} 
-            onCancel={() => currentSongId ? setState(AppState.PERFORMANCE) : setState(AppState.LIST)}
-            onDelete={handleDeleteSong}
+            onCancel={() => currentSongId || sharedSong ? setState(AppState.PERFORMANCE) : setState(AppState.LIST)}
+            onDelete={(id) => {
+              const newSongs = songs.filter(s => s.id !== id);
+              setSongs(newSongs);
+              storageService.saveSongs(newSongs);
+              setState(AppState.LIST);
+            }}
             onNotify={(m) => setToast(m)}
           />
         )}
@@ -136,6 +159,7 @@ const App: React.FC = () => {
             onClose={() => setState(AppState.LIST)}
             onEdit={() => setState(AppState.EDIT)}
             onUpdateTranspose={(id, tr) => {
+                if (sharedSong) return;
                 const updated = songs.map(s => s.id === id ? { ...s, transpose: tr } : s);
                 setSongs(updated);
                 storageService.saveSongs(updated);
@@ -148,25 +172,26 @@ const App: React.FC = () => {
       </div>
 
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[300] bg-blue-600 text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl animate-in slide-in-from-top duration-300">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[1000] bg-blue-600 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl animate-in slide-in-from-top duration-300">
             {toast}
         </div>
       )}
 
-      {(state === AppState.LIST || state === AppState.FORUM || state === AppState.DICTIONARY || state === AppState.TUNER) && (
+      {(state !== AppState.AUTH && state !== AppState.EDIT && state !== AppState.PERFORMANCE) && (
         <div className="h-[calc(64px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 pb-[env(safe-area-inset-bottom)] z-[100] shrink-0">
-          <button onClick={() => setState(AppState.LIST)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.LIST ? 'text-blue-500' : 'text-zinc-500'}`}>
-            <span className="text-[10px] font-black uppercase tracking-widest">Songs</span>
-          </button>
-          <button onClick={() => setState(AppState.FORUM)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.FORUM ? 'text-blue-500' : 'text-zinc-500'}`}>
-            <span className="text-[10px] font-black uppercase tracking-widest">Forum</span>
-          </button>
-          <button onClick={() => setState(AppState.DICTIONARY)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.DICTIONARY ? 'text-blue-500' : 'text-zinc-500'}`}>
-            <span className="text-[10px] font-black uppercase tracking-widest">Circle</span>
-          </button>
-          <button onClick={() => setState(AppState.TUNER)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.TUNER ? 'text-blue-500' : 'text-zinc-500'}`}>
-            <span className="text-[10px] font-black uppercase tracking-widest">Tuner</span>
-          </button>
+          {[
+            { id: AppState.LIST, label: 'Library', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5S19.832 5.477 21 6.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
+            { id: AppState.FORUM, label: 'Board', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+            { id: AppState.DICTIONARY, label: 'Theory', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
+            { id: AppState.TUNER, label: 'Tuner', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' }
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setState(tab.id)} className={`flex flex-col items-center gap-1 flex-1 transition-all ${state === tab.id ? 'text-blue-500' : 'text-zinc-500'}`}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} />
+              </svg>
+              <span className="text-[9px] font-black uppercase tracking-widest">{tab.label}</span>
+            </button>
+          ))}
         </div>
       )}
     </div>
