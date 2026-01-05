@@ -5,6 +5,9 @@ export interface Song {
   artist: string;
   content: string;
   transpose: number;
+  authorId?: string;
+  publishDate?: string;
+  likes?: number;
 }
 
 export enum AppState {
@@ -12,7 +15,8 @@ export enum AppState {
   EDIT = 'EDIT',
   PERFORMANCE = 'PERFORMANCE',
   DICTIONARY = 'DICTIONARY',
-  TUNER = 'TUNER'
+  TUNER = 'TUNER',
+  FORUM = 'FORUM'
 }
 
 export enum ViewMode {

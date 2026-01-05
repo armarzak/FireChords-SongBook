@@ -18,7 +18,8 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
 
   useEffect(() => {
     if (isCommunityMode) {
-        storageService.fetchCommunitySongs().then(setCommunitySongs);
+        // Fix: fetchCommunitySongs -> fetchForumSongs
+        storageService.fetchForumSongs().then(setCommunitySongs);
     }
   }, [isCommunityMode]);
 

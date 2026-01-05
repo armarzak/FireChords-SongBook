@@ -7,6 +7,7 @@ import { SongEditor } from './components/SongEditor';
 import { PerformanceView } from './components/PerformanceView';
 import { ChordDictionary } from './components/ChordDictionary';
 import { Tuner } from './components/Tuner';
+import { CommunityFeed } from './components/CommunityFeed';
 
 const App: React.FC = () => {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -30,18 +31,7 @@ const App: React.FC = () => {
       const decoded = storageService.decodeSongFromUrl(importData);
       if (decoded && decoded.title) {
         window.history.replaceState({}, document.title, window.location.pathname);
-        setSongs(prev => {
-            const exists = prev.find(s => s.title === decoded.title && s.artist === decoded.artist);
-            if (exists) {
-                setToast(`Song already in library`);
-                return prev;
-            }
-            const newSong = { ...decoded, id: Date.now().toString() } as Song;
-            const updated = [newSong, ...prev];
-            storageService.saveSongs(updated);
-            setToast(`Imported: ${decoded.title}`);
-            return updated;
-        });
+        handleImportSong(decoded as Song);
       }
     }
     
@@ -62,6 +52,21 @@ const App: React.FC = () => {
         return () => clearTimeout(t);
     }
   }, [toast]);
+
+  const handleImportSong = (song: Song) => {
+    setSongs(prev => {
+        const exists = prev.find(s => s.title === song.title && s.artist === song.artist);
+        if (exists) {
+            setToast(`Already in your library`);
+            return prev;
+        }
+        const newSong = { ...song, id: Date.now().toString(), likes: 0 } as Song;
+        const updated = [newSong, ...prev];
+        storageService.saveSongs(updated);
+        setToast(`Added to Library: ${song.title}`);
+        return updated;
+    });
+  };
 
   const handleSelectSong = (song: Song) => {
     setCurrentSongId(song.id);
@@ -110,6 +115,10 @@ const App: React.FC = () => {
           />
         )}
 
+        {state === AppState.FORUM && (
+          <CommunityFeed onImport={handleImportSong} />
+        )}
+
         {state === AppState.EDIT && (
           <SongEditor 
             song={currentSong} 
@@ -117,6 +126,7 @@ const App: React.FC = () => {
             onSave={handleSaveSong} 
             onCancel={() => currentSongId ? setState(AppState.PERFORMANCE) : setState(AppState.LIST)}
             onDelete={handleDeleteSong}
+            onNotify={(m) => setToast(m)}
           />
         )}
 
@@ -143,10 +153,13 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {(state === AppState.LIST || state === AppState.DICTIONARY || state === AppState.TUNER) && (
-        <div className="h-[calc(60px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 pb-[env(safe-area-inset-bottom)] z-[100] shrink-0">
+      {(state === AppState.LIST || state === AppState.FORUM || state === AppState.DICTIONARY || state === AppState.TUNER) && (
+        <div className="h-[calc(64px+env(safe-area-inset-bottom))] bg-zinc-900/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 pb-[env(safe-area-inset-bottom)] z-[100] shrink-0">
           <button onClick={() => setState(AppState.LIST)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.LIST ? 'text-blue-500' : 'text-zinc-500'}`}>
             <span className="text-[10px] font-black uppercase tracking-widest">Songs</span>
+          </button>
+          <button onClick={() => setState(AppState.FORUM)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.FORUM ? 'text-blue-500' : 'text-zinc-500'}`}>
+            <span className="text-[10px] font-black uppercase tracking-widest">Forum</span>
           </button>
           <button onClick={() => setState(AppState.DICTIONARY)} className={`flex flex-col items-center gap-1 flex-1 ${state === AppState.DICTIONARY ? 'text-blue-500' : 'text-zinc-500'}`}>
             <span className="text-[10px] font-black uppercase tracking-widest">Circle</span>
