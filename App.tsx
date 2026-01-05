@@ -51,25 +51,25 @@ const App: React.FC = () => {
   }, []);
 
   const initApp = async (u: User) => {
-    // 1. Сначала грузим локально
-    const local = storageService.getSongsLocal();
+    setIsSyncing(true);
+    // 1. Грузим из SQL базы
+    const local = await storageService.getSongsLocal();
     if (local.length > 0) {
       setSongs(local);
     } else {
-      // Если пусто, пробуем из облака
-      setIsSyncing(true);
+      // 2. Если пусто, пробуем из облака
       const cloud = await storageService.restoreLibraryFromCloud(u);
       if (cloud && cloud.length > 0) {
         setSongs(cloud);
-        storageService.saveSongsLocal(cloud);
-        setToast("Library restored from cloud");
+        await storageService.saveSongsBulk(cloud);
+        setToast("Library synced from SQL Cloud");
       } else {
         const defaults = storageService.getDefaultSongs();
         setSongs(defaults);
-        storageService.saveSongsLocal(defaults);
+        await storageService.saveSongsBulk(defaults);
       }
-      setIsSyncing(false);
     }
+    setIsSyncing(false);
   };
 
   useEffect(() => {
@@ -91,32 +91,32 @@ const App: React.FC = () => {
     if (!user) return;
     setIsSyncing(true);
     const success = await storageService.syncLibraryWithCloud(updatedSongs, user);
-    if (success) console.log("Cloud synced");
+    if (success) console.log("Cloud SQL synced");
     setIsSyncing(false);
   };
 
-  const handleImportSong = (song: Song) => {
-    setSongs(prev => {
-        const exists = prev.find(s => s.title === song.title && s.artist === song.artist);
-        if (exists) {
-            setToast(`Already in library`);
-            return prev;
-        }
-        const newSong = { ...song, id: Date.now().toString() } as Song;
-        const updated = [newSong, ...prev];
-        storageService.saveSongsLocal(updated);
-        handleSync(updated);
-        setToast(`Imported: ${song.title}`);
-        return updated;
-    });
+  const handleImportSong = async (song: Song) => {
+    const exists = songs.find(s => s.title === song.title && s.artist === song.artist);
+    if (exists) {
+        setToast(`Already in library`);
+        return;
+    }
+    const newSong = { ...song, id: 's-' + Date.now() } as Song;
+    const updated = [newSong, ...songs];
+    setSongs(updated);
+    await storageService.saveSongLocal(newSong);
+    handleSync(updated);
+    setToast(`Imported to DB: ${song.title}`);
   };
 
   const handleSaveSong = async (songData: Partial<Song>) => {
     let updatedSongs;
-    const songId = currentSongId || Date.now().toString();
+    const songId = currentSongId || 's-' + Date.now();
     
     if (currentSongId) {
       updatedSongs = songs.map(s => s.id === currentSongId ? { ...s, ...songData } as Song : s);
+      const songToSave = updatedSongs.find(s => s.id === currentSongId)!;
+      await storageService.saveSongLocal(songToSave);
     } else {
       const newSong: Song = {
         id: songId,
@@ -130,12 +130,13 @@ const App: React.FC = () => {
         authorId: user?.id
       };
       updatedSongs = [newSong, ...songs];
+      await storageService.saveSongLocal(newSong);
     }
 
     setSongs(updatedSongs);
-    storageService.saveSongsLocal(updatedSongs);
     handleSync(updatedSongs);
     setState(AppState.LIST);
+    setToast("SQL Record Updated");
   };
 
   const currentSong = sharedSong || songs.find(s => s.id === currentSongId);
@@ -150,7 +151,7 @@ const App: React.FC = () => {
           <SongList 
             songs={songs} 
             isSyncing={isSyncing}
-            onSyncManual={() => handleSync(songs).then(() => setToast("Database updated"))}
+            onSyncManual={() => handleSync(songs).then(() => setToast("Cloud Sync Completed"))}
             onSelect={(s) => { setCurrentSongId(s.id); setSharedSong(null); setState(AppState.PERFORMANCE); }} 
             onAdd={() => { setCurrentSongId(null); setSharedSong(null); setState(AppState.EDIT); }}
             onExportSuccess={(msg) => setToast(msg)}
@@ -170,12 +171,13 @@ const App: React.FC = () => {
             existingArtists={existingArtists}
             onSave={handleSaveSong} 
             onCancel={() => currentSongId || sharedSong ? setState(AppState.PERFORMANCE) : setState(AppState.LIST)}
-            onDelete={(id) => {
+            onDelete={async (id) => {
+              await storageService.deleteSongLocal(id);
               const newSongs = songs.filter(s => s.id !== id);
               setSongs(newSongs);
-              storageService.saveSongsLocal(newSongs);
               handleSync(newSongs);
               setState(AppState.LIST);
+              setToast("Record Deleted");
             }}
             onNotify={(m) => setToast(m)}
           />
@@ -186,13 +188,12 @@ const App: React.FC = () => {
             song={currentSong} 
             onClose={() => setState(AppState.LIST)}
             onEdit={() => setState(AppState.EDIT)}
-            onUpdateTranspose={(id, tr) => {
+            onUpdateTranspose={async (id, tr) => {
                 if (sharedSong) return;
                 const updated = songs.map(s => s.id === id ? { ...s, transpose: tr } : s);
                 setSongs(updated);
-                storageService.saveSongsLocal(updated);
-                // Транспонирование обычно локальное, но если хочешь и его в базу — раскомментируй:
-                // handleSync(updated);
+                const songToUpdate = updated.find(s => s.id === id)!;
+                await storageService.saveSongLocal(songToUpdate);
             }}
           />
         )}

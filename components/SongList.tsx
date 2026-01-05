@@ -49,12 +49,14 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
         <div className="flex justify-between items-center px-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-black tracking-tight text-white">Library</h1>
-            {isSyncing && (
-              <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-[8px] font-black text-blue-500 uppercase">Syncing</span>
+            <div className="flex items-center gap-1.5">
+               <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${isSyncing ? 'bg-blue-500/10 border-blue-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}></div>
+                <span className={`text-[8px] font-black uppercase ${isSyncing ? 'text-blue-500' : 'text-green-500'}`}>
+                  {isSyncing ? 'SQL Sync' : 'SQL DB'}
+                </span>
               </div>
-            )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button 
@@ -67,7 +69,7 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
                 </svg>
             </button>
             <button 
-                onClick={() => { storageService.copyLibraryAsCode(); onExportSuccess('Library copied as code'); }}
+                onClick={async () => { await storageService.copyLibraryAsCode(); onExportSuccess('Library exported'); }}
                 className="p-2 bg-zinc-800 rounded-full text-zinc-400 active:text-blue-500 transition-colors"
             >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
