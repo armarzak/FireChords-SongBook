@@ -2,9 +2,13 @@
 import { Song } from '../types';
 
 const STORAGE_KEY = 'guitar_songbook_songs';
-// Это публичный ID для нашего "Форума". В реальном приложении здесь будет URL вашего сервера или Firebase.
-// Для теста используем JSON-хранилище, которое позволяет записывать/читать всем.
-const CLOUD_BIN_URL = 'https://api.npoint.io/6f7e449c303f7e52b27a'; 
+/** 
+ * ВАЖНО: Мы используем npoint.io для хранения общего списка.
+ * Если этот ID перестанет работать, нужно создать новый бин на npoint.io 
+ * и вставить новый ID сюда.
+ */
+const CLOUD_BIN_ID = '6f7e449c303f7e52b27a';
+const CLOUD_BIN_URL = `https://api.npoint.io/${CLOUD_BIN_ID}`; 
 
 export const storageService = {
   getSongs: (): Song[] => {
@@ -20,8 +24,13 @@ export const storageService = {
   // Загрузка песен со всего мира (Форум)
   fetchForumSongs: async (): Promise<Song[]> => {
     try {
-      const response = await fetch(CLOUD_BIN_URL);
-      if (!response.ok) throw new Error('Failed to fetch forum');
+      const response = await fetch(CLOUD_BIN_URL, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) {
+        if (response.status === 404) return [];
+        throw new Error('Server returned error');
+      }
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     } catch (e) {
@@ -33,39 +42,52 @@ export const storageService = {
   // Публикация песни на форум
   publishToForum: async (song: Song): Promise<boolean> => {
     try {
-      // 1. Сначала получаем текущий список
-      const currentForum = await storageService.fetchForumSongs();
+      // 1. Сначала получаем текущий список для слияния
+      let currentForum: Song[] = [];
+      try {
+        const fetchRes = await fetch(CLOUD_BIN_URL);
+        if (fetchRes.ok) {
+          currentForum = await fetchRes.json();
+        }
+      } catch (err) {
+        console.warn("Could not fetch current forum, starting fresh", err);
+      }
       
-      // 2. Проверяем, нет ли уже такой песни
-      const exists = currentForum.find(s => s.title === song.title && s.artist === song.artist);
-      if (exists) return true; // Считаем успехом
+      if (!Array.isArray(currentForum)) currentForum = [];
 
-      // 3. Добавляем новую
-      const updatedForum = [
-        { 
-          ...song, 
-          id: 'cloud-' + Date.now(), 
-          publishDate: new Date().toISOString(),
-          likes: Math.floor(Math.random() * 5) 
-        }, 
-        ...currentForum
-      ].slice(0, 100); // Ограничим 100 песнями для демо
+      // 2. Проверяем дубликаты
+      const exists = currentForum.find(s => 
+        s.title.toLowerCase() === song.title.toLowerCase() && 
+        s.artist.toLowerCase() === song.artist.toLowerCase()
+      );
+      if (exists) return true; 
 
-      // 4. Сохраняем обратно в облако
+      // 3. Добавляем новую в начало
+      const newSong = { 
+        ...song, 
+        id: 'cloud-' + Date.now(), 
+        publishDate: new Date().toISOString(),
+        likes: 0 
+      };
+      
+      const updatedForum = [newSong, ...currentForum].slice(0, 50); // Лимит 50 песен для стабильности
+
+      // 4. Сохраняем (npoint ожидает POST или PUT для обновления)
       const res = await fetch(CLOUD_BIN_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(updatedForum)
       });
       
       return res.ok;
     } catch (e) {
-      console.error("Publishing failed:", e);
+      console.error("Publishing failed deep:", e);
       return false;
     }
   },
 
-  // Копирование библиотеки в виде кода (для DEFAULT_SONGS)
   copyLibraryAsCode: () => {
     const songs = storageService.getSongs();
     const code = JSON.stringify(songs, null, 2);
@@ -74,7 +96,6 @@ export const storageService = {
     });
   },
 
-  // Экспорт библиотеки в JSON файл
   exportDataFile: () => {
     const songs = storageService.getSongs();
     const dataStr = JSON.stringify(songs, null, 2);

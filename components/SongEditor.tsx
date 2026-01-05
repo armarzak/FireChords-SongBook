@@ -1,8 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Song } from '../types';
 import { storageService } from '../services/storageService';
-import { GoogleGenAI } from "@google/genai";
 
 interface SongEditorProps {
   song?: Song;
@@ -21,41 +20,12 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [isAiProcessing, setIsAiProcessing] = useState(false);
   
   const suggestionRef = useRef<HTMLDivElement>(null);
 
-  const handleAiOptimize = async () => {
-    if (!content.trim()) return;
-    setIsAiProcessing(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `You are a professional guitar editor. 
-        Please format these guitar chords and lyrics to be perfectly aligned. 
-        Use standard chord notation. Ensure there is vertical space between lines.
-        Only return the formatted content, no explanations.
-        
-        Content to format:
-        ${content}`,
-      });
-      
-      const optimized = response.text;
-      if (optimized) {
-        setContent(optimized);
-        onNotify("AI Optimized your chords!");
-      }
-    } catch (e) {
-      onNotify("AI failed to process content");
-    } finally {
-      setIsAiProcessing(false);
-    }
-  };
-
   const handlePublish = async () => {
-    if (!title || !content) {
-      onNotify("Fill title and chords first!");
+    if (!title.trim() || !content.trim()) {
+      onNotify("Title and chords are required!");
       return;
     }
     
@@ -63,18 +33,23 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
     const songData: Song = {
         id: song?.id || 'temp-' + Date.now(),
         title,
-        artist,
+        artist: artist || 'Anonymous',
         content,
         transpose: 0
     };
     
-    const success = await storageService.publishToForum(songData);
-    if (success) {
-      onNotify("Published to Forum! 🚀");
-    } else {
-      onNotify("Publishing failed. Try later.");
+    try {
+      const success = await storageService.publishToForum(songData);
+      if (success) {
+        onNotify("Successfully posted to Forum! 🚀");
+      } else {
+        onNotify("Post failed. Check your connection.");
+      }
+    } catch (e) {
+      onNotify("Error during publishing.");
+    } finally {
+      setIsPublishing(false);
     }
-    setIsPublishing(false);
   };
 
   const handleArtistChange = (value: string) => {
@@ -135,39 +110,28 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
                 onChange={(e) => setContent(e.target.value)}
                 spellCheck={false}
             />
-            
-            {/* AI Overlay Loader */}
-            {isAiProcessing && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10]">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        <span className="text-xs font-black text-blue-400 uppercase tracking-widest">Gemini is Thinking...</span>
-                    </div>
-                </div>
-            )}
         </div>
         
-        <div className="p-6 bg-[#121212] border-t border-white/5 pb-[calc(2rem+env(safe-area-inset-bottom))] space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={handleAiOptimize}
-                disabled={isAiProcessing}
-                className="py-4 rounded-2xl font-black text-[10px] bg-purple-600/10 text-purple-400 border border-purple-500/20 active:bg-purple-600 active:text-white flex items-center justify-center gap-2 uppercase tracking-widest disabled:opacity-50"
-              >
-                <span className="text-sm">✨</span> AI Optimize
-              </button>
-              <button 
-                onClick={handlePublish}
-                disabled={isPublishing}
-                className="py-4 rounded-2xl font-black text-[10px] bg-green-600/10 text-green-400 border border-green-500/20 active:bg-green-600 active:text-white flex items-center justify-center gap-2 uppercase tracking-widest disabled:opacity-50"
-              >
-                {isPublishing ? (
-                    <div className="w-3 h-3 border-2 border-green-400 border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                    <>🚀 Post to Forum</>
-                )}
-              </button>
-          </div>
+        <div className="p-6 bg-[#121212] border-t border-white/5 pb-[calc(2rem+env(safe-area-inset-bottom))] space-y-4">
+          <button 
+            onClick={handlePublish}
+            disabled={isPublishing}
+            className={`w-full py-5 rounded-3xl font-black text-sm flex items-center justify-center gap-3 transition-all uppercase tracking-widest ${isPublishing ? 'bg-zinc-800 text-zinc-500' : 'bg-blue-600 text-white shadow-xl shadow-blue-600/20 active:scale-95'}`}
+          >
+            {isPublishing ? (
+              <>
+                <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
+                Publishing...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                Post to Forum
+              </>
+            )}
+          </button>
 
           {song && onDelete && (
             <button 

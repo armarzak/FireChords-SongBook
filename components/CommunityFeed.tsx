@@ -11,22 +11,29 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport }) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadForum = async () => {
-    setLoading(true);
-    const data = await storageService.fetchForumSongs();
-    setSongs(data);
-    setLoading(false);
+    setError(null);
+    if (!refreshing) setLoading(true);
+    try {
+      const data = await storageService.fetchForumSongs();
+      setSongs(data);
+    } catch (err) {
+      setError("Failed to load community songs.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
     loadForum();
   }, []);
 
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     setRefreshing(true);
-    await loadForum();
-    setRefreshing(false);
+    loadForum();
   };
 
   return (
@@ -34,7 +41,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport }) => {
       <div className="px-6 py-6 flex justify-between items-end border-b border-white/5 bg-zinc-900/50 backdrop-blur-xl">
         <div>
           <h1 className="text-4xl font-black tracking-tighter text-white">Forum</h1>
-          <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest mt-1">Community Chords</p>
+          <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest mt-1">Shared Chords</p>
         </div>
         <button 
           onClick={handleRefresh}
@@ -50,19 +57,26 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport }) => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
             <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-zinc-600 font-black text-xs uppercase tracking-widest">Loading Feed...</p>
+            <p className="text-zinc-600 font-black text-xs uppercase tracking-widest">Updating Feed...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-20 px-10">
+            <p className="text-red-400 font-bold mb-4">{error}</p>
+            <button onClick={loadForum} className="text-blue-500 font-black uppercase text-xs tracking-widest">Try Again</button>
           </div>
         ) : songs.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-zinc-600 font-bold italic">No songs on the forum yet.<br/>Be the first to publish!</p>
+          <div className="text-center py-20 px-10">
+            <p className="text-zinc-600 font-bold italic mb-2">The forum is empty.</p>
+            <p className="text-zinc-700 text-xs uppercase tracking-widest">Publish your first song in the editor!</p>
           </div>
         ) : (
           songs.map((song) => (
-            <div key={song.id} className="bg-zinc-900/80 border border-white/5 rounded-3xl p-6 shadow-xl active:scale-[0.98] transition-all relative overflow-hidden group">
+            <div key={song.id} className="bg-zinc-900/80 border border-white/5 rounded-3xl p-6 shadow-xl active:scale-[0.98] transition-all relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4">
                  <div className="flex items-center gap-1 bg-white/5 px-3 py-1 rounded-full">
-                    <span className="text-[10px] font-black text-yellow-500">★</span>
-                    <span className="text-[10px] font-black text-zinc-400">{song.likes || 0}</span>
+                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">
+                      {song.likes ? `★ ${song.likes}` : 'NEW'}
+                    </span>
                  </div>
               </div>
               
@@ -72,12 +86,12 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport }) => {
               </div>
 
               <div className="flex items-center justify-between mt-6">
-                <div className="text-[10px] text-zinc-700 font-black uppercase tracking-tighter">
-                  Published {song.publishDate ? new Date(song.publishDate).toLocaleDateString() : 'recently'}
+                <div className="text-[9px] text-zinc-700 font-black uppercase tracking-widest">
+                  {song.publishDate ? new Date(song.publishDate).toLocaleDateString() : 'Global'}
                 </div>
                 <button 
                   onClick={() => onImport(song)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-90 transition-all"
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-90 transition-all"
                 >
                   Add to Library
                 </button>
