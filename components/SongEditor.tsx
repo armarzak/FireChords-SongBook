@@ -32,8 +32,8 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
     setIsPublishing(true);
     const songData: Song = {
         id: song?.id || 'temp-' + Date.now(),
-        title,
-        artist: artist || 'Anonymous',
+        title: title.trim(),
+        artist: artist.trim() || 'Anonymous',
         content,
         transpose: 0
     };
@@ -41,12 +41,12 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
     try {
       const success = await storageService.publishToForum(songData);
       if (success) {
-        onNotify("Successfully posted to Forum! 🚀");
+        onNotify("Song posted to Forum! 🚀");
       } else {
-        onNotify("Post failed. Check your connection.");
+        onNotify("Forum error. Try again later.");
       }
     } catch (e) {
-      onNotify("Error during publishing.");
+      onNotify("Connection error.");
     } finally {
       setIsPublishing(false);
     }
@@ -116,12 +116,12 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
           <button 
             onClick={handlePublish}
             disabled={isPublishing}
-            className={`w-full py-5 rounded-3xl font-black text-sm flex items-center justify-center gap-3 transition-all uppercase tracking-widest ${isPublishing ? 'bg-zinc-800 text-zinc-500' : 'bg-blue-600 text-white shadow-xl shadow-blue-600/20 active:scale-95'}`}
+            className={`w-full py-5 rounded-3xl font-black text-sm flex items-center justify-center gap-3 transition-all uppercase tracking-widest ${isPublishing ? 'bg-zinc-800 text-zinc-500' : 'bg-green-600 text-white shadow-xl shadow-green-600/20 active:scale-95'}`}
           >
             {isPublishing ? (
               <>
                 <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
-                Publishing...
+                Wait...
               </>
             ) : (
               <>
