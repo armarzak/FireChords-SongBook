@@ -96,7 +96,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       const parts = line.split(chordSplitRegex);
       
       return (
-        <div key={i} className={`min-h-[1.2em] leading-tight whitespace-pre ${isSection ? 'text-blue-500 font-black mt-6 mb-2' : ''}`}>
+        <div key={i} className={`min-h-[1.2em] leading-tight whitespace-pre-wrap break-words ${isSection ? 'text-blue-500 font-black mt-6 mb-2' : ''}`}>
           {parts.map((part, pi) => {
             const isChord = part.match(/^[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*$/);
             if (isChord) {
@@ -148,7 +148,9 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
                <span className="text-[7px] font-black opacity-30 uppercase tracking-tighter">Tr</span>
                <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`}>
                  <button onClick={() => { const val = transpose-1; setTranspose(val); onUpdateTranspose(song.id, val); }} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">-</button>
-                 <div className={`w-[1px] h-3 ${isDark ? 'bg-zinc-700' : 'bg-zinc-200'}`}></div>
+                 <div className={`min-w-[20px] px-1 flex items-center justify-center text-[8px] font-black tabular-nums ${transpose !== 0 ? (isDark ? 'text-blue-400' : 'text-blue-600') : (isDark ? 'text-zinc-600' : 'text-zinc-400')}`}>
+                   {transpose > 0 ? `+${transpose}` : transpose}
+                 </div>
                  <button onClick={() => { const val = transpose+1; setTranspose(val); onUpdateTranspose(song.id, val); }} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">+</button>
                </div>
              </div>
@@ -163,7 +165,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         onClick={() => setPopover(null)}
         className="flex-1 overflow-auto select-none scroll-smooth touch-pan-y"
       >
-        <div className="inline-block min-w-full w-max px-5 py-8 mono-grid" style={{ fontSize: `${fontSize}px` }}>
+        <div className="inline-block w-full px-5 py-8 mono-grid" style={{ fontSize: `${fontSize}px` }}>
             <div className="mb-8" style={{ fontSize: '1rem', fontFamily: 'sans-serif', whiteSpace: 'normal' }}>
                 <h1 className="text-4xl font-black mb-1 tracking-tighter leading-none">{song.title}</h1>
                 <p className={`text-xl font-bold mb-4 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>{song.artist}</p>
