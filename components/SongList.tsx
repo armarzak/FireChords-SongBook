@@ -8,9 +8,11 @@ interface SongListProps {
   onSelect: (song: Song) => void;
   onAdd: () => void;
   onExportSuccess: (msg: string) => void;
+  isSyncing?: boolean;
+  onSyncManual?: () => void;
 }
 
-export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onExportSuccess }) => {
+export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onExportSuccess, isSyncing, onSyncManual }) => {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.SONGS);
 
@@ -45,23 +47,32 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
     <div className="flex flex-col h-full bg-[#121212] pt-[env(safe-area-inset-top)]">
       <div className="px-4 pt-4 pb-2 space-y-4 bg-[#121212]">
         <div className="flex justify-between items-center px-1">
-          <h1 className="text-3xl font-black tracking-tight text-white">Library</h1>
           <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-black tracking-tight text-white">Library</h1>
+            {isSyncing && (
+              <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-[8px] font-black text-blue-500 uppercase">Syncing</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <button 
-                onClick={() => { storageService.copyLibraryAsCode(); onExportSuccess('Library copied as code'); }}
-                className="p-2 bg-blue-500/10 rounded-full text-blue-500 active:bg-blue-500 transition-all"
+                onClick={onSyncManual}
+                title="Backup to Cloud"
+                className="p-2 bg-zinc-800 rounded-full text-zinc-400 active:text-blue-500 transition-colors"
             >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
             </button>
             <button 
-              onClick={() => storageService.exportDataFile()}
-              className="p-2 bg-zinc-800 rounded-full text-zinc-400 active:text-blue-500"
+                onClick={() => { storageService.copyLibraryAsCode(); onExportSuccess('Library copied as code'); }}
+                className="p-2 bg-zinc-800 rounded-full text-zinc-400 active:text-blue-500 transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
             </button>
           </div>
         </div>

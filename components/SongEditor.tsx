@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Song, User } from '../types';
 import { storageService } from '../services/storageService';
-import { GoogleGenAI } from "@google/genai";
 
 interface SongEditorProps {
   song?: Song;
@@ -21,42 +20,16 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
   const [tuning, setTuning] = useState(song?.tuning || 'Standard');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [isAIGenerating, setIsAIGenerating] = useState(false);
   
-  const handleAIHelp = async () => {
-    if (!title) {
-        onNotify("Enter song title first!");
-        return;
-    }
-    setIsAIGenerating(true);
-    try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Write guitar chords and lyrics for the song "${title}" by "${artist || 'Unknown'}". 
-            Use the format: [Intro], [Verse], [Chorus]. Place chords above lyrics. 
-            Keep it simple and accurate. Return only the song content.`
-        });
-        if (response.text) {
-            setContent(response.text);
-            onNotify("AI chords generated! 🎸");
-        }
-    } catch (e) {
-        onNotify("AI busy. Try again later.");
-    } finally {
-        setIsAIGenerating(false);
-    }
-  };
-
   const handlePublish = async () => {
     const user = storageService.getUser();
     if (!user) {
-        onNotify("Session expired. Please re-login.");
+        onNotify("Please login to publish");
         return;
     }
 
     if (!title.trim() || !content.trim()) {
-      onNotify("Title and chords are required!");
+      onNotify("Title and content required!");
       return;
     }
     
@@ -74,13 +47,12 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
     try {
       const success = await storageService.publishToForum(songData, user);
       if (success) {
-        onNotify("Published to Global Board! 🚀");
+        onNotify("Live on Board! 🚀");
       } else {
-        onNotify("Publish failed. Check internet.");
+        onNotify("Publish failed. Try again.");
       }
     } catch (e) {
-        console.error(e);
-        onNotify("Connection error.");
+        onNotify("Connection error");
     } finally {
       setIsPublishing(false);
     }
@@ -88,15 +60,15 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
 
   return (
     <div className="fixed inset-0 bg-[#121212] z-[150] flex flex-col pt-[env(safe-area-inset-top)]">
-      <div className="flex justify-between items-center px-4 py-4 border-b border-[#2c2c2c] bg-zinc-900">
-        <button onClick={onCancel} className="text-zinc-500 font-medium text-lg px-2 active:text-white">Cancel</button>
-        <h2 className="text-lg font-bold uppercase tracking-widest text-zinc-400">Editor</h2>
-        <button onClick={() => onSave({ title, artist, content, capo, tuning })} className="text-blue-500 font-bold text-lg px-2 active:scale-95">Save</button>
+      <div className="flex justify-between items-center px-4 py-4 border-b border-white/5 bg-zinc-900/80 backdrop-blur-md">
+        <button onClick={onCancel} className="text-zinc-500 font-bold text-sm px-4 py-2 active:text-white">Cancel</button>
+        <h2 className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500">Editor</h2>
+        <button onClick={() => onSave({ title, artist, content, capo, tuning })} className="text-blue-500 font-black text-sm px-4 py-2 active:scale-95">Save</button>
       </div>
 
       <div className="flex-1 flex flex-col space-y-0 overflow-y-auto bg-black relative">
         <input 
-          className="w-full bg-[#121212] text-2xl font-black border-b border-white/5 py-6 px-6 focus:ring-0 placeholder:text-zinc-800 text-white outline-none"
+          className="w-full bg-[#121212] text-3xl font-black border-b border-white/5 py-8 px-6 focus:ring-0 placeholder:text-zinc-800 text-white outline-none tracking-tighter"
           placeholder="Song Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -104,62 +76,57 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
         
         <div className="grid grid-cols-1 border-b border-white/5 bg-[#121212]">
           <input 
-            className="w-full bg-transparent text-sm font-medium py-4 px-6 placeholder:text-zinc-800 text-zinc-400 outline-none"
+            className="w-full bg-transparent text-sm font-bold py-5 px-6 placeholder:text-zinc-800 text-zinc-400 outline-none"
             placeholder="Artist / Band"
             value={artist}
             onChange={(e) => setArtist(e.target.value)}
           />
         </div>
 
-        <div className="flex items-center justify-between bg-[#1c1c1e] px-6 py-3 border-b border-white/5">
-          <div className="flex items-center gap-4">
-             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-zinc-600 uppercase">Capo:</span>
-                <input type="number" className="w-10 bg-zinc-800 rounded px-1 py-1 text-xs font-bold text-blue-400 text-center" value={capo} onChange={(e) => setCapo(parseInt(e.target.value) || 0)} />
+        <div className="flex items-center bg-[#1c1c1e] px-6 py-4 border-b border-white/5">
+          <div className="flex items-center gap-6">
+             <div className="flex items-center gap-3">
+                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Capo:</span>
+                <input type="number" className="w-12 bg-zinc-800 rounded-lg px-2 py-1.5 text-xs font-black text-blue-400 text-center border border-white/5" value={capo} onChange={(e) => setCapo(parseInt(e.target.value) || 0)} />
              </div>
-             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-zinc-600 uppercase">Tune:</span>
-                <input className="w-20 bg-zinc-800 rounded px-2 py-1 text-xs font-bold text-blue-400" value={tuning} onChange={(e) => setTuning(e.target.value)} />
+             <div className="flex items-center gap-3">
+                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Tune:</span>
+                <input className="w-24 bg-zinc-800 rounded-lg px-3 py-1.5 text-xs font-black text-blue-400 border border-white/5" value={tuning} onChange={(e) => setTuning(e.target.value)} />
              </div>
           </div>
-          <button 
-            onClick={handleAIHelp}
-            disabled={isAIGenerating}
-            className="flex items-center gap-2 bg-blue-600/20 text-blue-400 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest active:scale-95 disabled:opacity-50"
-          >
-            {isAIGenerating ? 'Magic...' : 'AI Chords'}
-          </button>
         </div>
 
         <textarea 
-            className="flex-1 bg-black p-6 text-[16px] mono-grid resize-none border-none focus:ring-0 placeholder:text-zinc-800 text-zinc-200 leading-relaxed min-h-[300px] outline-none"
-            placeholder="C        G\nHello my friend..."
+            className="flex-1 bg-black p-6 text-[15px] mono-grid resize-none border-none focus:ring-0 placeholder:text-zinc-800 text-zinc-300 leading-relaxed min-h-[400px] outline-none"
+            placeholder="C        G\nLyrics go here..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
             spellCheck={false}
         />
         
-        <div className="p-6 bg-[#121212] border-t border-white/5 pb-[calc(2rem+env(safe-area-inset-bottom))] space-y-3">
+        <div className="p-6 bg-[#121212] border-t border-white/5 pb-[calc(2rem+env(safe-area-inset-bottom))] space-y-4">
           <button 
             onClick={handlePublish}
             disabled={isPublishing}
-            className={`w-full py-5 rounded-3xl font-black text-sm flex items-center justify-center gap-3 transition-all uppercase tracking-widest ${isPublishing ? 'bg-zinc-800 text-zinc-500' : 'bg-white text-black active:scale-95 shadow-xl shadow-white/5'}`}
+            className={`w-full py-5 rounded-3xl font-black text-xs flex items-center justify-center gap-3 transition-all uppercase tracking-[0.2em] shadow-2xl ${isPublishing ? 'bg-zinc-800 text-zinc-600' : 'bg-white text-black active:scale-[0.98]'}`}
           >
-            {isPublishing ? 'Syncing...' : 'Publish to Board'}
+            {isPublishing ? (
+              <><div className="w-4 h-4 border-2 border-zinc-600 border-t-zinc-400 rounded-full animate-spin"></div> Syncing to Global...</>
+            ) : 'Publish to Board'}
           </button>
 
           {song && (
             <button 
                 onClick={() => {
-                    if (isConfirmingDelete) onDelete(song.id);
+                    if (isConfirmingDelete) onDelete?.(song.id);
                     else {
                         setIsConfirmingDelete(true);
                         setTimeout(() => setIsConfirmingDelete(false), 3000);
                     }
                 }}
-                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest border transition-all ${isConfirmingDelete ? 'bg-red-600 text-white border-red-500' : 'bg-transparent text-red-500 border-red-500/20'}`}
+                className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border transition-all ${isConfirmingDelete ? 'bg-red-600 text-white border-red-500' : 'bg-transparent text-red-500 border-red-500/10'}`}
             >
-                {isConfirmingDelete ? 'Delete Forever' : 'Delete Song'}
+                {isConfirmingDelete ? 'Are you sure?' : 'Remove from Library'}
             </button>
           )}
         </div>
