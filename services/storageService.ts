@@ -5,19 +5,22 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Конфигурация
 const SUPABASE_URL = 'https://ivfeoqfeigdvzezlwfer.supabase.co';
-// ПРЕДУПРЕЖДЕНИЕ: process.env.API_KEY должен быть установлен в настройках Vercel как ваш Supabase Anon Key
-const SUPABASE_KEY = process.env.API_KEY || ''; 
+// Безопасное получение ключа
+const SUPABASE_KEY = (typeof process !== 'undefined' && process.env?.API_KEY) ? process.env.API_KEY : ''; 
 
 let supabase: SupabaseClient | null = null;
 try {
-  if (SUPABASE_KEY) {
+  if (SUPABASE_KEY && SUPABASE_KEY.length > 10) {
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log("📡 Supabase client initialized");
+  } else {
+    console.warn("⚠️ Supabase Key is missing or too short. Check environment variables.");
   }
 } catch (e) {
-  console.error("Supabase init failed", e);
+  console.error("❌ Supabase init failed:", e);
 }
 
-// SQL-подобная локальная БД (Offline First)
+// Локальная база (Dexie)
 class SongbookDatabase extends Dexie {
   songs!: Table<Song>;
   constructor() {
@@ -25,16 +28,12 @@ class SongbookDatabase extends Dexie {
   }
 }
 
-// Инициализация базы данных
 export const db = new SongbookDatabase();
-
-// Fix: Moved version definition outside constructor to resolve "Property 'version' does not exist on type 'SongbookDatabase'" error
 db.version(1).stores({
   songs: 'id, title, artist, authorId, is_public'
 });
 
 const USER_KEY = 'guitar_songbook_user';
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 // Маппинг данных (Postgres -> Frontend)
 const mapFromDb = (s: any): Song => ({
@@ -47,7 +46,9 @@ const mapFromDb = (s: any): Song => ({
   tuning: s.tuning || 'Standard',
   authorName: s.author_name,
   authorId: s.user_id,
-  createdAt: s.created_at
+  createdAt: s.created_at,
+  // Fix: Map is_public from database record
+  is_public: s.is_public
 });
 
 // Маппинг данных (Frontend -> Postgres)
@@ -61,11 +62,12 @@ const mapToDb = (s: Song, userId: string) => ({
   capo: s.capo,
   tuning: s.tuning,
   author_name: s.authorName || 'Anonymous',
-  is_public: s.likes !== undefined || s.id.startsWith('pub-') ? true : false
+  // Fix: Property is_public is now defined on Song interface
+  is_public: s.id.startsWith('pub-') || s.is_public === true ? true : false
 });
 
 export const storageService = {
-  isCloudEnabled: () => !!supabase && !!SUPABASE_KEY,
+  isCloudEnabled: () => !!supabase,
 
   getUser: (): User | null => {
     const data = localStorage.getItem(USER_KEY);
@@ -77,7 +79,7 @@ export const storageService = {
       id: 'u-' + Math.random().toString(36).substr(2, 9),
       stageName,
       joinedAt: new Date().toISOString(),
-      avatarColor: COLORS[Math.floor(Math.random() * COLORS.length)]
+      avatarColor: '#3b82f6'
     };
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
     return newUser;
@@ -99,7 +101,8 @@ export const storageService = {
     await db.songs.delete(id);
     const user = storageService.getUser();
     if (supabase && user) {
-        await supabase.from('songs').delete().eq('id', id).eq('user_id', user.id);
+        const { error } = await supabase.from('songs').delete().eq('id', id).eq('user_id', user.id);
+        if (error) console.error("Cloud delete error:", error);
     }
   },
 
@@ -108,8 +111,13 @@ export const storageService = {
     try {
       const payload = songs.map(s => mapToDb(s, user.id));
       const { error } = await supabase.from('songs').upsert(payload);
-      return !error;
+      if (error) {
+          console.error("❌ Supabase Upsert Error:", error.message, error.details);
+          return false;
+      }
+      return true;
     } catch (e) {
+      console.error("❌ Sync exception:", e);
       return false;
     }
   },
@@ -122,8 +130,11 @@ export const storageService = {
         .select('*')
         .eq('user_id', user.id);
       
-      if (error || !data) return null;
-      return data.map(mapFromDb);
+      if (error) {
+          console.error("❌ Supabase Fetch Error:", error.message);
+          return null;
+      }
+      return data ? data.map(mapFromDb) : [];
     } catch (e) {
       return null;
     }
@@ -139,8 +150,8 @@ export const storageService = {
         .order('created_at', { ascending: false })
         .limit(50);
       
-      if (error || !data) return [];
-      return data.map(mapFromDb);
+      if (error) return [];
+      return data ? data.map(mapFromDb) : [];
     } catch (e) {
       return [];
     }
@@ -159,19 +170,13 @@ export const storageService = {
 
   copyLibraryAsCode: async () => {
     const songs = await storageService.getSongsLocal();
-    const json = JSON.stringify(songs, null, 2);
-    try {
-        await navigator.clipboard.writeText(json);
-        return true;
-    } catch (e) {
-        return false;
-    }
+    await navigator.clipboard.writeText(JSON.stringify(songs, null, 2));
+    return true;
   },
 
   decodePostFromUrl: (data: string): Song | null => {
     try {
-      const json = atob(data);
-      return JSON.parse(json);
+      return JSON.parse(atob(data));
     } catch (e) {
       return null;
     }

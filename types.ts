@@ -18,6 +18,8 @@ export interface Song {
   tuning?: string;
   createdAt?: string;
   likes?: number;
+  // Indicates if the song is published to the public forum
+  is_public?: boolean;
 }
 
 export enum AppState {
