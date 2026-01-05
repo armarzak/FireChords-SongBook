@@ -35,7 +35,7 @@ const mapFromDb = (s: any): Song => ({
   artist: s.artist,
   content: s.content,
   transpose: s.transpose || 0,
-  authorName: s.author_name,
+  authorName: s.author_name || 'Anonymous',
   authorId: s.user_id,
   createdAt: s.created_at,
   is_public: s.is_public
@@ -49,7 +49,8 @@ const mapToDb = (s: Song, userId: string) => ({
   content: s.content || '',
   transpose: s.transpose || 0,
   author_name: s.authorName || 'Anonymous',
-  is_public: s.is_public === undefined ? false : s.is_public
+  is_public: !!s.is_public,
+  updated_at: new Date().toISOString()
 });
 
 export const storageService = {
@@ -96,9 +97,13 @@ export const storageService = {
     try {
       const payload = songs.map(s => mapToDb(s, user.id));
       const { error } = await supabase.from('songs').upsert(payload);
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        console.error("Cloud Sync Error:", error);
+        return { success: false, error: error.message };
+      }
       return { success: true };
     } catch (e: any) {
+      console.error("Cloud Sync Exception:", e);
       return { success: false, error: e.message };
     }
   },
@@ -135,18 +140,24 @@ export const storageService = {
   publishToForum: async (song: Song, user: User): Promise<boolean> => {
     if (!supabase) return false;
     try {
-      const publishedSong = { ...song, is_public: true, authorName: user.stageName };
+      // Гарантируем, что песня публичная и имеет автора
+      const publishedSong = { 
+        ...song, 
+        is_public: true, 
+        authorName: user.stageName,
+        authorId: user.id 
+      };
       const payload = mapToDb(publishedSong, user.id);
       
       const { error } = await supabase.from('songs').upsert(payload);
       
       if (error) {
-        console.error("Publish error detail:", error);
+        console.error("Board Publish Error:", error);
         return false;
       }
       return true;
     } catch (e) {
-      console.error("Publish exception:", e);
+      console.error("Board Publish Exception:", e);
       return false;
     }
   },

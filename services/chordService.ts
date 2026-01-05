@@ -6,27 +6,20 @@ const normalizationMap: { [key: string]: string } = {
   'Cb': 'B', 'Fb': 'E', 'E#': 'F', 'B#': 'C'
 };
 
-/**
- * Регулярное выражение для поиска аккордов.
- * Оптимизировано для работы с бемолями и различными суффиксами.
- */
-export const chordRegex = /([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/g;
+// Список ключевых слов для секций, которые не должны транспонироваться
+const sectionKeywords = 'Intro|Verse|Chorus|Bridge|Outro|Solo|Instrumental|Припев|Куплет|Вступление|Проигрыш|Кода|Соло';
+const sectionRegex = new RegExp(`^\\s*[\\[\\(]?(${sectionKeywords})(?:\\s*\\d+)?[\\]\\)]?:?\\s*$`, 'i');
 
-/**
- * Регулярное выражение для разбивки строки на части (текст и аккорды).
- * Использует захватывающие скобки, чтобы аккорды сохранялись в массиве после split.
- */
+export const chordRegex = /([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/g;
 export const chordSplitRegex = /((?:^|[\s\[])(?:[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*))/g;
 
 export const transposeChord = (chord: string, semitones: number): string => {
-  // Извлекаем корень и суффикс
   const match = chord.match(/^([A-Ga-g][#b]?)(.*)$/);
   if (!match) return chord;
 
   let baseNote = match[1].charAt(0).toUpperCase() + match[1].slice(1);
   const suffix = match[2];
 
-  // Приводим к диезной форме для работы со шкалой
   if (normalizationMap[baseNote]) {
     baseNote = normalizationMap[baseNote];
   }
@@ -43,14 +36,22 @@ export const transposeChord = (chord: string, semitones: number): string => {
 export const transposeText = (text: string, semitones: number): string => {
   if (semitones === 0) return text;
   
-  // Транспонируем только те части, которые похожи на аккорды
-  return text.split(chordSplitRegex).map(part => {
-    const chordMatch = part.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
-    if (chordMatch) {
-      const fullChord = chordMatch[0];
-      const transposed = transposeChord(fullChord, semitones);
-      return part.replace(fullChord, transposed);
+  // Обрабатываем построчно, чтобы не трогать заголовки секций
+  return text.split('\n').map(line => {
+    // Если это заголовок секции - возвращаем как есть
+    if (sectionRegex.test(line.trim())) {
+      return line;
     }
-    return part;
-  }).join('');
+
+    // Если обычная строка - транспонируем аккорды
+    return line.split(chordSplitRegex).map(part => {
+      const chordMatch = part.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
+      if (chordMatch) {
+        const fullChord = chordMatch[0];
+        const transposed = transposeChord(fullChord, semitones);
+        return part.replace(fullChord, transposed);
+      }
+      return part;
+    }).join('');
+  }).join('\n');
 };

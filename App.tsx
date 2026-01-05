@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Song, AppState, User } from './types';
 import { storageService } from './services/storageService';
 import { SongList } from './components/SongList';
@@ -80,6 +80,12 @@ const App: React.FC = () => {
     setState(AppState.LIST);
   };
 
+  // Вычисляем список уникальных артистов для автодополнения
+  const existingArtists = useMemo(() => {
+    const artists = songs.map(s => s.artist).filter(a => a && a.trim() !== '');
+    return Array.from(new Set(artists)).sort();
+  }, [songs]);
+
   const currentSong = sharedSong || songs.find(s => s.id === currentSongId);
   const navBgClass = theme === 'light' ? 'bg-white/90 border-zinc-200' : 'bg-zinc-900/95 border-white/5';
 
@@ -91,39 +97,80 @@ const App: React.FC = () => {
 
       <div className="flex-1 relative overflow-hidden">
         {state === AppState.LIST && (
-          <SongList songs={songs} isSyncing={isSyncing} isOnline={isOnline} theme={theme} onToggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')} onSelect={s => { setCurrentSongId(s.id); setState(AppState.PERFORMANCE); }} onAdd={() => { setCurrentSongId(null); setState(AppState.EDIT); }} onExportSuccess={showToast} />
+          <SongList 
+            songs={songs} 
+            isSyncing={isSyncing} 
+            isOnline={isOnline} 
+            theme={theme} 
+            onToggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')} 
+            onSelect={s => { setCurrentSongId(s.id); setSharedSong(null); setState(AppState.PERFORMANCE); }} 
+            onAdd={() => { 
+              setCurrentSongId(null); 
+              setSharedSong(null); 
+              setState(AppState.EDIT); 
+            }} 
+            onExportSuccess={showToast} 
+          />
         )}
         {state === AppState.EXPLORER && <ChordExplorer theme={theme} />}
         {state === AppState.DICTIONARY && <ChordDictionary theme={theme} />}
-        {state === AppState.FORUM && <CommunityFeed onImport={async s => { const n = {...s, id: 'pub-'+s.id}; setSongs([n, ...songs]); await storageService.saveSongLocal(n); showToast("Imported"); }} onView={s => { setSharedSong(s); setState(AppState.PERFORMANCE); }} theme={theme} />}
+        {state === AppState.FORUM && <CommunityFeed onImport={async s => { const n = {...s, id: 'pub-'+s.id}; setSongs([n, ...songs]); await storageService.saveSongLocal(n); showToast("Imported"); }} onView={s => { setSharedSong(s); setCurrentSongId(null); setState(AppState.PERFORMANCE); }} theme={theme} />}
         {state === AppState.TUNER && <Tuner theme={theme} />}
         
         {state === AppState.EDIT && (
           <SongEditor 
             song={currentSong} 
-            existingArtists={[]} 
+            existingArtists={existingArtists} 
             onSave={async d => {
               const id = currentSongId || 's-'+Date.now();
-              const news = currentSongId ? songs.map(s => s.id === id ? {...s, ...d} as Song : s) : [{id, title: d.title||'Untitled', artist: d.artist||'Unknown', content: d.content||'', transpose:0} as Song, ...songs];
-              setSongs(news);
-              await storageService.saveSongLocal(news.find(s=>s.id===id)!);
+              const newSong: Song = currentSongId 
+                ? { ...currentSong!, ...d } as Song
+                : { id, title: d.title || 'Untitled', artist: d.artist || 'Unknown', content: d.content || '', transpose: 0, authorName: user?.stageName } as Song;
+              
+              const updatedSongsList = currentSongId 
+                ? songs.map(s => s.id === id ? newSong : s)
+                : [newSong, ...songs];
+
+              setSongs(updatedSongsList);
+              
+              // 1. Сохраняем локально (Dexie)
+              await storageService.saveSongLocal(newSong);
+              
+              // 2. Синхронизируем с облаком (SQL)
+              if (user) {
+                const cloudResult = await storageService.syncLibraryWithCloud(updatedSongsList, user);
+                if (cloudResult.success) {
+                  setIsOnline(true);
+                } else {
+                  console.warn("Cloud sync failed on save:", cloudResult.error);
+                }
+              }
+
+              setCurrentSongId(null);
+              setSharedSong(null);
               setState(AppState.LIST);
-              showToast("Saved");
+              showToast("Saved & Synced");
             }} 
             onDelete={async id => {
               await storageService.deleteSongLocal(id);
               setSongs(songs.filter(s => s.id !== id));
+              setCurrentSongId(null);
+              setSharedSong(null);
               setState(AppState.LIST);
               showToast("Removed");
             }}
-            onCancel={() => setState(AppState.LIST)} 
+            onCancel={() => {
+              setCurrentSongId(null);
+              setSharedSong(null);
+              setState(AppState.LIST);
+            }} 
             onNotify={showToast} 
             theme={theme} 
           />
         )}
 
         {state === AppState.PERFORMANCE && currentSong && (
-          <PerformanceView song={currentSong} theme={theme} onClose={() => { setSharedSong(null); setState(AppState.LIST); }} onEdit={() => setState(AppState.EDIT)} onUpdateTranspose={()=>{}} />
+          <PerformanceView song={currentSong} theme={theme} onClose={() => { setSharedSong(null); setCurrentSongId(null); setState(AppState.LIST); }} onEdit={() => setState(AppState.EDIT)} onUpdateTranspose={()=>{}} />
         )}
       </div>
 

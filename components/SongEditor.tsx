@@ -81,7 +81,14 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
             placeholder="Artist / Band"
             value={artist}
             onChange={(e) => setArtist(e.target.value)}
+            list="artists-list"
+            autoComplete="off"
           />
+          <datalist id="artists-list">
+            {existingArtists.map((a, idx) => (
+              <option key={idx} value={a} />
+            ))}
+          </datalist>
         </div>
 
         <textarea 

@@ -14,7 +14,8 @@ interface PerformanceViewProps {
   theme?: 'light' | 'dark';
 }
 
-const sectionRegex = /^\[?(Intro|Verse|Chorus|Bridge|Outro|Solo|Instrumental|Припев|Куплет|Вступление|Проигрыш|Кода|Соло)(?:\s*\d+)?\]?:?\s*$/i;
+const sectionKeywords = 'Intro|Verse|Chorus|Bridge|Outro|Solo|Instrumental|Припев|Куплет|Вступление|Проигрыш|Кода|Соло';
+const sectionRegex = new RegExp(`^\\s*[\\[\\(]?(${sectionKeywords})(?:\\s*\\d+)?[\\]\\)]?:?\\s*$`, 'i');
 
 export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose, onEdit, onUpdateTranspose, theme = 'dark' }) => {
   const [transpose, setTranspose] = useState(song.transpose || 0);
@@ -78,20 +79,29 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
 
   const renderContent = () => {
     const text = transposeText(song.content, transpose);
-    return text.split('\n').map((line, i) => {
-      const isSection = sectionRegex.test(line.trim());
-      const parts = line.split(chordSplitRegex);
+    // Explicitly typing 'line' as string to avoid inference issues
+    return text.split('\n').map((line: string, i: number) => {
+      const trimmedLine = line.trim();
+      const isSection = sectionRegex.test(trimmedLine);
       
+      if (isSection) {
+        return (
+          <div key={i} className="text-blue-500 font-black mt-8 mb-2 tracking-widest uppercase text-[0.85em] border-b border-blue-500/10 pb-1">
+            {trimmedLine}
+          </div>
+        );
+      }
+
+      const parts = line.split(chordSplitRegex);
       return (
-        <div key={i} className={`min-h-[1.2em] leading-tight whitespace-pre-wrap break-words ${isSection ? 'text-blue-500 font-black mt-6 mb-2' : ''}`}>
-          {parts.map((part, pi) => {
-            // FIX: Using type guard to ensure 'part' is a string before processing.
-            // This fixes "Argument of type 'unknown' is not assignable to parameter of type 'string'" errors.
+        <div key={i} className="min-h-[1.2em] leading-tight whitespace-pre-wrap break-words">
+          {/* Explicitly typing 'part' as string to avoid "unknown" type error */}
+          {parts.map((part: string, pi: number) => {
             if (typeof part !== 'string') return null;
             
             const p = part;
             const chordMatch = p.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
-            if (chordMatch && p.length < 15) { // Protect against false positives in long strings
+            if (chordMatch && p.length < 15) {
               const chordName = chordMatch[0];
               return (
                 <React.Fragment key={pi}>
@@ -116,9 +126,10 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     });
   };
 
+  // Explicitly typing 'c' as string in map callback
   const detectedChords = Array.from(new Set(
     (song.content.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/g) || [])
-  )).map(c => transposeChord(c, transpose));
+  )).map((c: string) => transposeChord(c, transpose));
 
   return (
     <div className={`fixed inset-0 z-[100] flex flex-col overscroll-none transition-colors duration-300 ${isDark ? 'bg-black text-white' : 'bg-white text-zinc-900'}`}>
