@@ -53,8 +53,23 @@ export const SongList: React.FC<SongListProps> = ({ songs, onSelect, onAdd, onEx
         <div className="flex justify-between items-start">
           <div className="flex flex-col flex-1">
             <div className="flex items-center gap-3">
-                <svg className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} fill="currentColor" viewBox="0 0 24 24">
-                   <path d="M12,2A3,3 0 0,0 9,5V10C9,11.23 9.75,12.28 10.83,12.7L8,20.25V22H16V20.25L13.17,12.7C14.25,12.28 15,11.23 15,10V5A3,3 0 0,0 12,2M12,4A1,1 0 0,1 13,5V10A1,1 0 0,1 12,11A1,1 0 0,1 11,10V5A1,1 0 0,1 12,4M11.5,14H12.5L14.41,19.09L13.5,19.41L12.5,16.73V20H11.5V16.73L10.5,19.41L9.59,19.09L11.5,14Z" />
+                {/* Refined Acoustic Guitar Logo */}
+                <svg className={`w-12 h-12 shrink-0 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} viewBox="0 0 64 64" fill="none">
+                  {/* Body Silhouette */}
+                  <path 
+                    d="M32 58c-8.5 0-15.5-6.5-15.5-14.5 0-5 3.5-8.5 5.5-11 0-2.5-1-5.5-1-9 0-6 4.5-11 11-11s11 5 11 11c0 3.5-1 6.5-1 9 2 2.5 5.5 6 5.5 11 0 8-7 14.5-15.5 14.5z" 
+                    fill="currentColor" 
+                    fillOpacity="0.1"
+                    stroke="currentColor" 
+                    strokeWidth="2.5" 
+                    strokeLinejoin="round" 
+                  />
+                  {/* Soundhole */}
+                  <circle cx="32" cy="42" r="3.5" fill="currentColor" />
+                  {/* Neck */}
+                  <rect x="30" y="6" width="4" height="15" rx="1" fill="currentColor" />
+                  {/* Bridge */}
+                  <rect x="27" y="49" width="10" height="2" rx="1" fill="currentColor" />
                 </svg>
                 <h1 className={`text-4xl font-black tracking-tight leading-none ${isDark ? 'text-white' : 'text-zinc-900'}`}>YOUR <span className="block text-xl opacity-60 uppercase">SONGS</span></h1>
             </div>

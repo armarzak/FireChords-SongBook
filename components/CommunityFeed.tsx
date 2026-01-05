@@ -9,6 +9,21 @@ interface CommunityFeedProps {
   theme?: 'light' | 'dark';
 }
 
+const AcousticGuitarIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 64 64" fill="none">
+    <path 
+      d="M32 58c-8.5 0-15.5-6.5-15.5-14.5 0-5 3.5-8.5 5.5-11 0-2.5-1-5.5-1-9 0-6 4.5-11 11-11s11 5 11 11c0 3.5-1 6.5-1 9 2 2.5 5.5 6 5.5 11 0 8-7 14.5-15.5 14.5z" 
+      fill="currentColor" 
+      fillOpacity="0.2"
+      stroke="currentColor" 
+      strokeWidth="2.5" 
+      strokeLinejoin="round" 
+    />
+    <circle cx="32" cy="42" r="3.5" fill="currentColor" />
+    <rect x="30" y="6" width="4" height="15" rx="1" fill="currentColor" />
+  </svg>
+);
+
 export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, theme = 'dark' }) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,9 +86,17 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
   return (
     <div className={`flex flex-col h-full pt-[env(safe-area-inset-top)] ${isDark ? 'bg-[#121212]' : 'bg-[#f8f9fa]'}`}>
       <div className={`px-6 py-6 flex justify-between items-end border-b backdrop-blur-xl ${isDark ? 'border-white/5 bg-zinc-900/50' : 'border-zinc-200 bg-white/80'}`}>
-        <div>
-          <h1 className={`text-4xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-zinc-900'}`}>Common</h1>
-          <p className={`text-xs font-black uppercase tracking-[0.2em] mt-1 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Global Archive</p>
+        <div className="flex items-center gap-4">
+          {/* Triple Acoustic Guitar Logo - recognizably guitars now */}
+          <div className="relative w-16 h-12 flex items-center justify-center">
+             <AcousticGuitarIcon className={`absolute w-10 h-10 transition-colors -translate-x-4 rotate-[-25deg] ${isDark ? 'text-blue-500 opacity-30' : 'text-blue-400 opacity-40'}`} />
+             <AcousticGuitarIcon className={`absolute w-10 h-10 transition-colors translate-x-4 rotate-[25deg] ${isDark ? 'text-blue-500 opacity-30' : 'text-blue-400 opacity-40'}`} />
+             <AcousticGuitarIcon className={`absolute w-11 h-11 transition-colors z-10 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+          </div>
+          <div>
+            <h1 className={`text-4xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-zinc-900'}`}>Common</h1>
+            <p className={`text-xs font-black uppercase tracking-[0.2em] mt-1 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Global Archive</p>
+          </div>
         </div>
         <button 
           onClick={handleRefresh}
