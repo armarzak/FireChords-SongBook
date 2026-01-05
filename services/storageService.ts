@@ -1,9 +1,9 @@
+
 import { Song, User } from '../types';
 import { Dexie, type Table } from 'dexie';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://nakmccxvygrotpdaplwh.supabase.co';
-// По умолчанию используем API_KEY из среды, если его нет - ваш предоставленный ключ
 const FALLBACK_KEY = 'sb_publishable__P0cMXcqbjZWKMJB8g_TcA_ltI3Qgm_';
 const SUPABASE_KEY = (typeof process !== 'undefined' && process.env?.API_KEY) ? process.env.API_KEY : FALLBACK_KEY; 
 
@@ -11,24 +11,16 @@ let supabase: SupabaseClient | null = null;
 try {
   if (SUPABASE_KEY && SUPABASE_KEY.length > 10) {
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log("📡 Supabase: Client initialized.");
-  } else {
-    console.error("❌ Supabase: No API Key found in environment.");
   }
 } catch (e) {
-  console.error("❌ Supabase: Init error:", e);
+  console.error("Supabase Init error:", e);
 }
 
-// Fix: Define the database structure using an interface and type assertion to avoid 
-// inheritance issues where 'version' might not be correctly recognized by the TS compiler.
 export interface SongbookDatabase extends Dexie {
   songs: Table<Song>;
 }
 
-// Fix: Configure the Dexie instance before casting to SongbookDatabase to ensure 
-// the 'version' property is correctly identified by the TypeScript compiler.
 const dexieInstance = new Dexie('GuitarSongbookDB_v3');
-
 dexieInstance.version(1).stores({
   songs: 'id, title, artist, authorId, is_public'
 });
@@ -57,11 +49,11 @@ const mapToDb = (s: Song, userId: string) => ({
   content: s.content || '',
   transpose: s.transpose || 0,
   author_name: s.authorName || 'Anonymous',
-  is_public: !!s.is_public
+  is_public: s.is_public === undefined ? false : s.is_public
 });
 
 export const storageService = {
-  isCloudEnabled: () => !!supabase && SUPABASE_KEY.length > 0,
+  isCloudEnabled: () => !!supabase,
 
   getUser: (): User | null => {
     const data = localStorage.getItem(USER_KEY);
@@ -100,17 +92,11 @@ export const storageService = {
   },
 
   syncLibraryWithCloud: async (songs: Song[], user: User): Promise<{success: boolean, error?: string}> => {
-    if (!supabase) return { success: false, error: 'Supabase client not initialized' };
-    
+    if (!supabase) return { success: false, error: 'No connection' };
     try {
       const payload = songs.map(s => mapToDb(s, user.id));
       const { error } = await supabase.from('songs').upsert(payload);
-      
-      if (error) {
-          const detail = `${error.message} (Code: ${error.code})`;
-          return { success: false, error: detail };
-      }
-      
+      if (error) return { success: false, error: error.message };
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message };
@@ -120,11 +106,7 @@ export const storageService = {
   restoreLibraryFromCloud: async (user: User): Promise<Song[] | null> => {
     if (!supabase) return null;
     try {
-      const { data, error } = await supabase
-        .from('songs')
-        .select('*')
-        .eq('user_id', user.id);
-      
+      const { data, error } = await supabase.from('songs').select('*').eq('user_id', user.id);
       if (error) return null;
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
@@ -140,8 +122,10 @@ export const storageService = {
         .select('*')
         .eq('is_public', true)
         .order('created_at', { ascending: false });
-      
-      if (error) return [];
+      if (error) {
+        console.error("Forum fetch error:", error);
+        return [];
+      }
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
       return [];
@@ -151,10 +135,18 @@ export const storageService = {
   publishToForum: async (song: Song, user: User): Promise<boolean> => {
     if (!supabase) return false;
     try {
-      const payload = { ...mapToDb(song, user.id), is_public: true };
+      const publishedSong = { ...song, is_public: true, authorName: user.stageName };
+      const payload = mapToDb(publishedSong, user.id);
+      
       const { error } = await supabase.from('songs').upsert(payload);
-      return !error;
+      
+      if (error) {
+        console.error("Publish error detail:", error);
+        return false;
+      }
+      return true;
     } catch (e) {
+      console.error("Publish exception:", e);
       return false;
     }
   },
@@ -163,24 +155,5 @@ export const storageService = {
     const songs = await storageService.getSongsLocal();
     await navigator.clipboard.writeText(JSON.stringify(songs, null, 2));
     return true;
-  },
-
-  decodePostFromUrl: (data: string): Song | null => {
-    try {
-      return JSON.parse(atob(data));
-    } catch (e) {
-      return null;
-    }
-  },
-
-  getDefaultSongs: (): Song[] => [
-    {
-      id: 'def-1',
-      title: 'Imagine',
-      artist: 'John Lennon',
-      transpose: 0,
-      content: `[Intro]\nC  Cmaj7  F\n\n[Verse]\nC            Cmaj7    F\nImagine there's no heaven\nC            Cmaj7    F\nIt's easy if you try`,
-      authorName: 'System'
-    }
-  ]
+  }
 };

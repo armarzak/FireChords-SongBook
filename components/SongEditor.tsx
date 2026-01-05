@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Song, User } from '../types';
 import { storageService } from '../services/storageService';
@@ -35,11 +36,13 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
     
     setIsPublishing(true);
     const songData: Song = {
-        id: song?.id || 'temp-' + Date.now(),
+        id: song?.id || 's-' + Date.now(),
         title: title.trim(),
         artist: artist.trim() || 'Various',
         content,
-        transpose: 0
+        transpose: song?.transpose || 0,
+        authorName: user.stageName,
+        is_public: true
     };
     
     try {
@@ -47,7 +50,7 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
       if (success) {
         onNotify("Live on Board! 🚀");
       } else {
-        onNotify("Publish failed. Try again.");
+        onNotify("Publish failed. Check console.");
       }
     } catch (e) {
         onNotify("Connection error");
