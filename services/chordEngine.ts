@@ -16,13 +16,9 @@ export const CHORD_FORMULAS: Record<string, ChordFormula> = {
   'm7': { name: 'Minor 7', intervals: [0, 3, 7, 10], labels: ['R', 'b3', '5', 'b7'] },
   'add9': { name: 'Added 9', intervals: [0, 4, 7, 14], labels: ['R', '3', '5', '9'] },
   'add11': { name: 'Added 11', intervals: [0, 4, 7, 17], labels: ['R', '3', '5', '11'] },
-  '9': { name: 'Dominant 9', intervals: [0, 4, 7, 10, 14], labels: ['R', '3', '5', 'b7', '9'] },
-  'maj9': { name: 'Major 9', intervals: [0, 4, 7, 11, 14], labels: ['R', '3', '5', '7', '9'] },
-  'm9': { name: 'Minor 9', intervals: [0, 3, 7, 10, 14], labels: ['R', 'b3', '5', 'b7', '9'] },
-  '6': { name: 'Major 6', intervals: [0, 4, 7, 9], labels: ['R', '3', '5', '6'] },
-  'dim': { name: 'Diminished', intervals: [0, 3, 6], labels: ['R', 'b3', 'b5'] },
   'sus2': { name: 'Sus 2', intervals: [0, 2, 7], labels: ['R', '2', '5'] },
   'sus4': { name: 'Sus 4', intervals: [0, 5, 7], labels: ['R', '4', '5'] },
+  '6sus2': { name: '6sus2', intervals: [0, 2, 7, 9], labels: ['R', '2', '5', '6'] },
 };
 
 export const getNoteAt = (stringRoot: string, fret: number): string => {
