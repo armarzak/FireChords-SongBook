@@ -79,7 +79,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
 
   const renderContent = () => {
     const text = transposeText(song.content, transpose);
-    // Explicitly typing 'line' as string to avoid inference issues
     return text.split('\n').map((line: string, i: number) => {
       const trimmedLine = line.trim();
       const isSection = sectionRegex.test(trimmedLine);
@@ -95,38 +94,44 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       const parts = line.split(chordSplitRegex);
       return (
         <div key={i} className="min-h-[1.2em] leading-tight whitespace-pre-wrap break-words">
-          {/* Explicitly typing 'part' as string to avoid "unknown" type error */}
           {parts.map((part: string, pi: number) => {
             if (typeof part !== 'string') return null;
             
-            const p = part;
-            const chordMatch = p.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
-            if (chordMatch && p.length < 15) {
+            const chordMatch = part.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
+            if (chordMatch && part.trim().length < 15) {
               const chordName = chordMatch[0];
+              const partsOfLine = part.split(chordName);
+              
               return (
                 <React.Fragment key={pi}>
-                  {p.split(chordName)[0]}
+                  {partsOfLine[0]}
                   <button 
                     onClick={(e) => {
+                      e.stopPropagation();
                       const rect = e.currentTarget.getBoundingClientRect();
-                      setPopover(popover?.name === chordName ? null : { name: chordName, x: rect.left + rect.width / 2, y: rect.top, variation: 0 });
+                      // Используем fixed поповер, поэтому передаем координаты вьюпорта
+                      setPopover(popover?.name === chordName ? null : { 
+                        name: chordName, 
+                        x: rect.left + rect.width / 2, 
+                        y: rect.top, 
+                        variation: 0 
+                      });
                     }}
-                    className={`font-bold px-0.5 rounded transition-colors ${isDark ? 'text-yellow-400' : 'text-blue-600'} ${popover?.name === chordName ? (isDark ? 'bg-yellow-400/20 ring-1 ring-yellow-400/50' : 'bg-blue-600/10 ring-1 ring-blue-600/50') : ''}`}
+                    className={`font-bold px-0.5 rounded transition-all duration-200 ${isDark ? 'text-yellow-400' : 'text-blue-600'} ${popover?.name === chordName ? (isDark ? 'bg-yellow-400/20 ring-1 ring-yellow-400/50' : 'bg-blue-600/10 ring-1 ring-blue-600/50 scale-110') : 'active:scale-125'}`}
                   >
                     {chordName}
                   </button>
-                  {p.split(chordName)[1]}
+                  {partsOfLine[1]}
                 </React.Fragment>
               );
             }
-            return <span key={pi} className={isDark ? 'text-zinc-200' : 'text-zinc-800'}>{p}</span>;
+            return <span key={pi} className={isDark ? 'text-zinc-200' : 'text-zinc-800'}>{part}</span>;
           })}
         </div>
       );
     });
   };
 
-  // Explicitly typing 'c' as string in map callback
   const detectedChords = Array.from(new Set(
     (song.content.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/g) || [])
   )).map((c: string) => transposeChord(c, transpose));
@@ -142,14 +147,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         <div className="flex flex-col items-center flex-1 px-2">
           <h2 className={`text-[9px] font-black truncate max-w-[100px] mb-1 opacity-50 uppercase tracking-widest text-center ${isDark ? 'text-white' : 'text-zinc-900'}`}>{song.title}</h2>
           <div className="flex gap-3 items-center">
-             <div className="flex flex-col items-center gap-0.5">
-               <span className="text-[7px] font-black opacity-30 uppercase tracking-tighter">Font</span>
-               <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`}>
-                 <button onClick={() => setFontSize(s => Math.max(s-1, 6))} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">A-</button>
-                 <div className={`w-[1px] h-3 ${isDark ? 'bg-zinc-700' : 'bg-zinc-200'}`}></div>
-                 <button onClick={() => setFontSize(s => Math.min(s+1, 40))} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">A+</button>
-               </div>
-             </div>
              <div className="flex flex-col items-center gap-0.5">
                <span className="text-[7px] font-black opacity-30 uppercase tracking-tighter">Tr</span>
                <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`}>
@@ -184,8 +181,11 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       </div>
 
       {popover && (
-        <div className="fixed z-[200] animate-in zoom-in-95 pointer-events-none" style={{ left: `${popover.x}px`, top: `${popover.y - 10}px`, transform: 'translate(-50%, -100%)' }}>
-          <div className="pointer-events-auto" onClick={(e) => {
+        <div 
+          className="fixed z-[300] animate-in zoom-in-95 fade-in duration-200" 
+          style={{ left: `${popover.x}px`, top: `${popover.y - 12}px`, transform: 'translate(-50%, -100%)' }}
+        >
+          <div className="relative pointer-events-auto" onClick={(e) => {
             e.stopPropagation();
             const fings = getFingerings(popover.name);
             if (fings.length > 1) setPopover({ ...popover, variation: (popover.variation + 1) % fings.length });
@@ -193,7 +193,15 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
             {(() => {
               const fingerings = getFingerings(popover.name);
               const fingering = fingerings[popover.variation % fingerings.length];
-              if (!fingering) return null;
+              
+              if (!fingering) {
+                return (
+                  <div className={`px-4 py-3 rounded-2xl shadow-2xl border text-[10px] font-black uppercase tracking-widest ${isDark ? 'bg-zinc-900 border-red-500/30 text-red-500' : 'bg-white border-red-100 text-red-600'}`}>
+                    Shape not found
+                  </div>
+                );
+              }
+
               return (
                 <div className="relative">
                   <ChordDiagram fingering={fingering} theme={theme} />
@@ -206,22 +214,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       )}
 
       <div className={`fixed bottom-0 left-0 right-0 border-t px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 flex flex-col gap-4 z-[130] ${isDark ? 'bg-zinc-900/95 backdrop-blur-3xl border-white/5' : 'bg-zinc-50/95 backdrop-blur-3xl border-zinc-200'}`}>
-        <div className="flex flex-col gap-1.5 px-1">
-          <div className="flex justify-between items-center">
-            <span className={`text-[8px] font-black uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>Scroll Speed</span>
-            <span className={`text-[10px] font-black tabular-nums ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{scrollSpeed.toFixed(1)}x</span>
-          </div>
-          <input 
-            type="range" 
-            min="0.1" 
-            max="4.0" 
-            step="0.1"
-            value={scrollSpeed}
-            onChange={(e) => setScrollSpeed(parseFloat(e.target.value))}
-            className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-blue-500 ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`}
-          />
-        </div>
-
         <div className="flex items-center gap-3">
            <div className={`flex-1 flex p-1 rounded-xl border ${isDark ? 'bg-black/40 border-white/5' : 'bg-white border-zinc-200 shadow-sm'}`}>
               {[0.5, 1, 2].map(speed => (

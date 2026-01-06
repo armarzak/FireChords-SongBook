@@ -6,10 +6,10 @@ const normalizationMap: { [key: string]: string } = {
   'Cb': 'B', 'Fb': 'E', 'E#': 'F', 'B#': 'C'
 };
 
-// Список ключевых слов для секций, которые не должны транспонироваться
 const sectionKeywords = 'Intro|Verse|Chorus|Bridge|Outro|Solo|Instrumental|Припев|Куплет|Вступление|Проигрыш|Кода|Соло';
 const sectionRegex = new RegExp(`^\\s*[\\[\\(]?(${sectionKeywords})(?:\\s*\\d+)?[\\]\\)]?:?\\s*$`, 'i');
 
+// Регулярное выражение расширено для поддержки add9, add11, 6/9 и прочих
 export const chordRegex = /([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/g;
 export const chordSplitRegex = /((?:^|[\s\[])(?:[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*))/g;
 
@@ -36,14 +36,11 @@ export const transposeChord = (chord: string, semitones: number): string => {
 export const transposeText = (text: string, semitones: number): string => {
   if (semitones === 0) return text;
   
-  // Обрабатываем построчно, чтобы не трогать заголовки секций
   return text.split('\n').map(line => {
-    // Если это заголовок секции - возвращаем как есть
     if (sectionRegex.test(line.trim())) {
       return line;
     }
 
-    // Если обычная строка - транспонируем аккорды
     return line.split(chordSplitRegex).map(part => {
       const chordMatch = part.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
       if (chordMatch) {
