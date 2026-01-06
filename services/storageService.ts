@@ -62,7 +62,6 @@ const mapToDb = (s: Song, userId: string) => {
     transpose: Number(s.transpose) || 0,
     author_name: String(s.authorName || 'Anonymous'),
     is_public: Boolean(s.is_public)
-    // Поле updated_at удалено, так как оно отсутствует в базе данных пользователя
   };
 };
 
@@ -154,11 +153,14 @@ export const storageService = {
   publishToForum: async (song: Song, user: User): Promise<{success: boolean, error?: string}> => {
     if (!supabase || !user) return { success: false, error: 'Supabase offline or user missing' };
     try {
+      // Генерируем уникальный ID для публикации на доску
       const pubId = song.id.startsWith('pub-') ? song.id : `pub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
       
       const payload = {
         id: pubId,
-        user_id: user.id,
+        // Для анонимных публикаций на общую доску часто политика RLS требует, чтобы user_id был NULL,
+        // так как анонимный пользователь не может "владеть" записью в таблице, привязанной к auth.users.
+        user_id: null, 
         title: (song.title || 'Untitled').trim(),
         artist: (song.artist || 'Unknown').trim(),
         content: (song.content || '').trim(),
@@ -170,15 +172,10 @@ export const storageService = {
       const { error } = await supabase.from('songs').insert(payload);
 
       if (error) {
-        if (error.code === '23505') {
-            const { error: upsertError } = await supabase.from('songs').upsert(payload);
-            if (upsertError) return { success: false, error: upsertError.message };
-        } else {
-            console.error("Publication Error:", error);
-            return { success: false, error: error.message };
-        }
+        console.warn("Board Publish error (RLS?):", error);
+        return { success: false, error: error.message };
       }
-      return { true: true } as any; // simplified return
+      return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message || 'Exception occurred' };
     }
