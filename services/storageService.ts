@@ -158,21 +158,27 @@ export const storageService = {
       
       const payload = {
         id: pubId,
-        // Для анонимных публикаций на общую доску часто политика RLS требует, чтобы user_id был NULL,
-        // так как анонимный пользователь не может "владеть" записью в таблице, привязанной к auth.users.
-        user_id: null, 
+        // Возвращаем user_id обратно к ID пользователя, так как NULL нарушил RLS политику.
+        // Если это все еще вызывает RLS ошибку, значит политика требует аутентификации Supabase Auth.
+        user_id: String(user.id), 
         title: (song.title || 'Untitled').trim(),
         artist: (song.artist || 'Unknown').trim(),
         content: (song.content || '').trim(),
         transpose: Number(song.transpose) || 0,
-        author_name: user.stageName || 'Anonymous',
+        author_name: (user.stageName || 'Anonymous').trim(),
         is_public: true
       };
 
       const { error } = await supabase.from('songs').insert(payload);
 
       if (error) {
-        console.warn("Board Publish error (RLS?):", error);
+        // Если запись уже существует, пробуем обновить ее (upsert)
+        if (error.code === '23505') {
+            const { error: upsertError } = await supabase.from('songs').upsert(payload);
+            if (upsertError) return { success: false, error: upsertError.message };
+            return { success: true };
+        }
+        console.warn("Board Publish error:", error);
         return { success: false, error: error.message };
       }
       return { success: true };
