@@ -25,7 +25,7 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
   const handlePublish = async () => {
     const user = storageService.getUser();
     if (!user) {
-        onNotify("Login required");
+        onNotify("Error: User ID missing. Re-login.");
         return;
     }
 
@@ -36,7 +36,6 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
     
     setIsPublishing(true);
     
-    // Создаем чистый объект песни для публикации
     const songData: Song = {
         id: song?.id || 's-' + Date.now(),
         title: title.trim(),
@@ -50,23 +49,20 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
     try {
       const result = await storageService.publishToForum(songData, user);
       if (result.success) {
-        onNotify("Live on Board! 🚀");
+        onNotify("Published! 🚀");
       } else {
-        // Выводим конкретную ошибку сервера для диагностики
         const errorDetail = result.error || "Unknown Error";
-        console.error("Board Publish Failure:", errorDetail);
+        console.warn("Publish details:", errorDetail);
         
-        if (errorDetail.includes("row-level security")) {
-            onNotify("Permission Denied (RLS)");
-        } else if (errorDetail.includes("conflict")) {
-            onNotify("Already Published");
+        // Показываем больше текста ошибки для диагностики
+        if (errorDetail.length > 30) {
+            onNotify(errorDetail.slice(0, 45));
         } else {
-            onNotify(`Error: ${errorDetail.slice(0, 20)}...`);
+            onNotify(`Error: ${errorDetail}`);
         }
       }
     } catch (e: any) {
-        onNotify("Network Fail");
-        console.error(e);
+        onNotify("Network Error");
     } finally {
       setIsPublishing(false);
     }

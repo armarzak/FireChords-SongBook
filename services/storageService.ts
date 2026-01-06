@@ -10,7 +10,9 @@ const SUPABASE_KEY = (typeof process !== 'undefined' && process.env?.API_KEY) ? 
 let supabase: SupabaseClient | null = null;
 try {
   if (SUPABASE_KEY && SUPABASE_KEY.length > 10) {
-    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false }
+    });
   }
 } catch (e) {
   console.error("Supabase Init error:", e);
@@ -19,8 +21,7 @@ try {
 const requestPersistence = async () => {
   if (navigator.storage && navigator.storage.persist) {
     try {
-      const isPersisted = await navigator.storage.persist();
-      console.log(`[Storage] Persisted: ${isPersisted}`);
+      await navigator.storage.persist();
     } catch (e) {}
   }
 };
@@ -52,10 +53,9 @@ const mapFromDb = (s: any): Song => ({
 });
 
 const mapToDb = (s: Song, userId: string) => {
-  // Очищаем объект от undefined полей для Supabase
-  const payload: any = {
+  return {
     id: String(s.id),
-    user_id: userId,
+    user_id: String(userId),
     title: String(s.title || 'Untitled').trim(),
     artist: String(s.artist || 'Unknown').trim(),
     content: String(s.content || '').trim(),
@@ -64,7 +64,6 @@ const mapToDb = (s: Song, userId: string) => {
     is_public: Boolean(s.is_public),
     updated_at: new Date().toISOString()
   };
-  return payload;
 };
 
 export const storageService = {
@@ -72,14 +71,19 @@ export const storageService = {
 
   getUser: (): User | null => {
     const data = localStorage.getItem(USER_KEY);
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    try {
+        return JSON.parse(data);
+    } catch (e) {
+        return null;
+    }
   },
 
   saveUser: (stageName: string): User => {
     const existing = storageService.getUser();
     const newUser: User = {
       id: existing?.id || 'u-' + Math.random().toString(36).substr(2, 9),
-      stageName: stageName.trim(),
+      stageName: stageName.trim() || 'Guitarist',
       joinedAt: existing?.joinedAt || new Date().toISOString(),
       avatarColor: existing?.avatarColor || '#3b82f6'
     };
@@ -109,14 +113,11 @@ export const storageService = {
   },
 
   syncLibraryWithCloud: async (songs: Song[], user: User): Promise<{success: boolean, error?: string}> => {
-    if (!supabase || !user) return { success: false, error: 'Not initialized' };
+    if (!supabase || !user) return { success: false, error: 'Storage Not Init' };
     try {
       const payload = songs.map(s => mapToDb(s, user.id));
-      const { error } = await supabase.from('songs').upsert(payload, { onConflict: 'id' });
-      if (error) {
-        console.error("Cloud Sync Error:", error);
-        return { success: false, error: error.message };
-      }
+      const { error } = await supabase.from('songs').upsert(payload);
+      if (error) return { success: false, error: error.message };
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message };
@@ -124,7 +125,7 @@ export const storageService = {
   },
 
   restoreLibraryFromCloud: async (user: User): Promise<Song[] | null> => {
-    if (!supabase) return null;
+    if (!supabase || !user) return null;
     try {
       const { data, error } = await supabase.from('songs').select('*').eq('user_id', user.id);
       if (error) return null;
@@ -141,7 +142,8 @@ export const storageService = {
         .from('songs')
         .select('*')
         .eq('is_public', true)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
       if (error) return [];
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
@@ -150,33 +152,38 @@ export const storageService = {
   },
 
   publishToForum: async (song: Song, user: User): Promise<{success: boolean, error?: string}> => {
-    if (!supabase) return { success: false, error: 'Supabase offline' };
+    if (!supabase || !user) return { success: false, error: 'Supabase offline or user missing' };
     try {
-      // Генерируем ID публикации, если его нет
-      const pubId = song.id.startsWith('pub-') ? song.id : `pub-${user.id.slice(-4)}-${Date.now()}`;
+      const pubId = song.id.startsWith('pub-') ? song.id : `pub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
       
-      const publishedSong: Song = { 
-        ...song, 
+      const payload = {
         id: pubId,
-        is_public: true, 
-        authorName: user.stageName,
-        authorId: user.id 
+        user_id: user.id,
+        title: (song.title || 'Untitled').trim(),
+        artist: (song.artist || 'Unknown').trim(),
+        content: (song.content || '').trim(),
+        transpose: Number(song.transpose) || 0,
+        author_name: user.stageName || 'Anonymous',
+        is_public: true,
+        updated_at: new Date().toISOString()
       };
 
-      const payload = mapToDb(publishedSong, user.id);
-      
-      // Используем upsert для гибкости
-      const { error } = await supabase
-        .from('songs')
-        .upsert(payload, { onConflict: 'id' });
+      // Пробуем просто вставить. Если RLS настроен правильно, это сработает.
+      const { error } = await supabase.from('songs').insert(payload);
 
       if (error) {
-        console.warn("Supabase Board Error:", error);
-        return { success: false, error: error.message };
+        // Если ошибка "already exists", пробуем upsert
+        if (error.code === '23505') {
+            const { error: upsertError } = await supabase.from('songs').upsert(payload);
+            if (upsertError) return { success: false, error: upsertError.message };
+        } else {
+            console.error("Publication Error:", error);
+            return { success: false, error: error.message };
+        }
       }
       return { success: true };
     } catch (e: any) {
-      return { success: false, error: e.message || 'Connection failed' };
+      return { success: false, error: e.message || 'Exception occurred' };
     }
   }
 };
