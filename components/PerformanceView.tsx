@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Song } from '../types';
-import { transposeText, chordSplitRegex, transposeChord } from '../services/chordService';
+import { transposeText, chordRegex, transposeChord, isChordLine } from '../services/chordService';
 import { ChordPanel } from './ChordPanel';
 import { ChordDiagram } from './ChordDiagram';
 import { getFingerings } from '../services/chordLibrary';
@@ -82,6 +82,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     return text.split('\n').map((line: string, i: number) => {
       const trimmedLine = line.trim();
       const isSection = sectionRegex.test(trimmedLine);
+      const isChords = isChordLine(line);
       
       if (isSection) {
         return (
@@ -91,49 +92,54 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         );
       }
 
-      const parts = line.split(chordSplitRegex);
-      return (
-        <div key={i} className="min-h-[1.2em] leading-tight whitespace-pre-wrap break-words">
-          {parts.map((part: string, pi: number) => {
-            if (typeof part !== 'string') return null;
-            
-            const chordMatch = part.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
-            if (chordMatch && part.trim().length < 15) {
-              const chordName = chordMatch[0];
-              const partsOfLine = part.split(chordName);
-              
-              return (
-                <React.Fragment key={pi}>
-                  {partsOfLine[0]}
+      if (isChords) {
+        const parts = line.split(/(\s+)/);
+        return (
+          <div key={i} className="min-h-[1.2em] leading-tight whitespace-pre">
+            {parts.map((part, pi) => {
+              const chordMatch = part.match(chordRegex);
+              if (chordMatch) {
+                const chordName = chordMatch[0];
+                return (
                   <button 
+                    key={pi}
                     onClick={(e) => {
                       e.stopPropagation();
                       const rect = e.currentTarget.getBoundingClientRect();
-                      // Используем fixed поповер, поэтому передаем координаты вьюпорта
-                      setPopover(popover?.name === chordName ? null : { 
-                        name: chordName, 
-                        x: rect.left + rect.width / 2, 
-                        y: rect.top, 
-                        variation: 0 
-                      });
+                      // Инвертируем поповер если он уже открыт для этого аккорда
+                      if (popover?.name === chordName) {
+                        setPopover(null);
+                      } else {
+                        setPopover({ 
+                          name: chordName, 
+                          x: rect.left + rect.width / 2, 
+                          y: rect.top, 
+                          variation: 0 
+                        });
+                      }
                     }}
-                    className={`font-bold px-0.5 rounded transition-all duration-200 ${isDark ? 'text-yellow-400' : 'text-blue-600'} ${popover?.name === chordName ? (isDark ? 'bg-yellow-400/20 ring-1 ring-yellow-400/50' : 'bg-blue-600/10 ring-1 ring-blue-600/50 scale-110') : 'active:scale-125'}`}
+                    className={`font-bold px-0.5 rounded transition-all duration-200 ${isDark ? 'text-yellow-400' : 'text-blue-600'} ${popover?.name === chordName ? (isDark ? 'bg-yellow-400/20 ring-1 ring-yellow-400/50 scale-110' : 'bg-blue-600/10 ring-1 ring-blue-600/50 scale-110') : 'active:scale-125'}`}
                   >
-                    {chordName}
+                    {part}
                   </button>
-                  {partsOfLine[1]}
-                </React.Fragment>
-              );
-            }
-            return <span key={pi} className={isDark ? 'text-zinc-200' : 'text-zinc-800'}>{part}</span>;
-          })}
+                );
+              }
+              return <span key={pi}>{part}</span>;
+            })}
+          </div>
+        );
+      }
+
+      return (
+        <div key={i} className={`min-h-[1.2em] leading-tight whitespace-pre-wrap break-words ${isDark ? 'text-zinc-200' : 'text-zinc-800'}`}>
+          {line}
         </div>
       );
     });
   };
 
   const detectedChords = Array.from(new Set(
-    (song.content.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/g) || [])
+    (song.content.match(chordRegex) || [])
   )).map((c: string) => transposeChord(c, transpose));
 
   return (
@@ -182,13 +188,15 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
 
       {popover && (
         <div 
-          className="fixed z-[300] animate-in zoom-in-95 fade-in duration-200" 
+          className="fixed z-[300] animate-in zoom-in-95 fade-in duration-200 pointer-events-none" 
           style={{ left: `${popover.x}px`, top: `${popover.y - 12}px`, transform: 'translate(-50%, -100%)' }}
         >
           <div className="relative pointer-events-auto" onClick={(e) => {
             e.stopPropagation();
             const fings = getFingerings(popover.name);
-            if (fings.length > 1) setPopover({ ...popover, variation: (popover.variation + 1) % fings.length });
+            if (fings.length > 1) {
+              setPopover({ ...popover, variation: (popover.variation + 1) % fings.length });
+            }
           }}>
             {(() => {
               const fingerings = getFingerings(popover.name);
@@ -196,8 +204,8 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
               
               if (!fingering) {
                 return (
-                  <div className={`px-4 py-3 rounded-2xl shadow-2xl border text-[10px] font-black uppercase tracking-widest ${isDark ? 'bg-zinc-900 border-red-500/30 text-red-500' : 'bg-white border-red-100 text-red-600'}`}>
-                    Shape not found
+                  <div className={`px-4 py-3 rounded-2xl shadow-2xl border text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${isDark ? 'bg-zinc-900 border-red-500/30 text-red-500' : 'bg-white border-red-100 text-red-600'}`}>
+                    Shape not found: {popover.name}
                   </div>
                 );
               }

@@ -9,9 +9,40 @@ const normalizationMap: { [key: string]: string } = {
 const sectionKeywords = 'Intro|Verse|Chorus|Bridge|Outro|Solo|Instrumental|Припев|Куплет|Вступление|Проигрыш|Кода|Соло';
 const sectionRegex = new RegExp(`^\\s*[\\[\\(]?(${sectionKeywords})(?:\\s*\\d+)?[\\]\\)]?:?\\s*$`, 'i');
 
-// Регулярное выражение расширено для поддержки add9, add11, 6/9 и прочих
-export const chordRegex = /([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/g;
-export const chordSplitRegex = /((?:^|[\s\[])(?:[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*))/g;
+/** 
+ * Улучшенное регулярное выражение.
+ * (?![a-z]) гарантирует, что заглавная буква — это не начало обычного слова.
+ * Также разрешаем типичные суффиксы аккордов.
+ */
+export const chordRegex = /\b[A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|7|9|11|13|[\d\/\+#b])*(?![a-z])\b/g;
+
+/**
+ * Проверка, является ли строка строкой с аккордами.
+ */
+export const isChordLine = (line: string): boolean => {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (sectionRegex.test(trimmed)) return false;
+  
+  const chords = trimmed.match(chordRegex) || [];
+  if (chords.length === 0) return false;
+  
+  // Строка считается текстовой, если в ней есть слова длиннее 2 букв,
+  // которые НЕ являются аккордами.
+  const words = trimmed.split(/\s+/).filter(w => w.length > 2);
+  let nonChordWords = 0;
+  
+  for (const word of words) {
+    if (!word.match(chordRegex)) {
+      nonChordWords++;
+    }
+  }
+
+  // Если обычных слов больше или столько же, сколько аккордов — скорее всего это текст (лирика)
+  if (nonChordWords >= chords.length) return false;
+
+  return true;
+};
 
 export const transposeChord = (chord: string, semitones: number): string => {
   const match = chord.match(/^([A-Ga-g][#b]?)(.*)$/);
@@ -37,18 +68,9 @@ export const transposeText = (text: string, semitones: number): string => {
   if (semitones === 0) return text;
   
   return text.split('\n').map(line => {
-    if (sectionRegex.test(line.trim())) {
-      return line;
-    }
-
-    return line.split(chordSplitRegex).map(part => {
-      const chordMatch = part.match(/([A-G][#b]?(?:m|maj|min|dim|aug|sus|add|M|[\d\/\+#b])*)/);
-      if (chordMatch) {
-        const fullChord = chordMatch[0];
-        const transposed = transposeChord(fullChord, semitones);
-        return part.replace(fullChord, transposed);
-      }
-      return part;
-    }).join('');
+    if (sectionRegex.test(line.trim())) return line;
+    if (!isChordLine(line)) return line;
+    
+    return line.replace(chordRegex, (match) => transposeChord(match, semitones));
   }).join('\n');
 };
