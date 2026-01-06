@@ -16,15 +16,12 @@ export const Fretboard: React.FC<FretboardProps> = ({ root, chordNotes, theme, m
   const stringsCount = 6;
   
   const width = 800;
-  const height = 120; // Уменьшено со 180
+  const height = 120; 
   const fretWidth = width / fretsCount;
   const stringHeight = height / (stringsCount - 1);
   const margin = { top: 15, right: 20, bottom: 25, left: 35 };
 
-  // Проверка на диез для скрытия порожка
   const isSharp = root.includes('#');
-
-  // В табах: 1-я струна сверху (e), 6-я снизу (E)
   const stringNames = ['e', 'B', 'G', 'D', 'A', 'E'];
   
   const getStringY = (stringIdx: number) => (5 - stringIdx) * stringHeight;
@@ -34,12 +31,10 @@ export const Fretboard: React.FC<FretboardProps> = ({ root, chordNotes, theme, m
       <svg width={width + margin.left + margin.right} height={height + margin.top + margin.bottom} className="mx-auto">
         <g transform={`translate(${margin.left}, ${margin.top})`}>
           
-          {/* Порожек (Nut) - скрываем при диезах */}
           {!isSharp && (
             <rect x={-5} y={-2} width={5} height={height + 4} fill={isDark ? "#555" : "#ccc"} rx={2} />
           )}
 
-          {/* Лады (Frets) */}
           {Array.from({ length: fretsCount + 1 }).map((_, i) => (
             <g key={i}>
               <line 
@@ -48,7 +43,6 @@ export const Fretboard: React.FC<FretboardProps> = ({ root, chordNotes, theme, m
                 stroke={isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)"} 
                 strokeWidth={i === 0 ? (isSharp ? 2 : 4) : 2} 
               />
-              {/* Номера ладов */}
               {i > 0 && (
                 <text 
                   x={(i - 0.5) * fretWidth} 
@@ -64,7 +58,6 @@ export const Fretboard: React.FC<FretboardProps> = ({ root, chordNotes, theme, m
             </g>
           ))}
 
-          {/* Маркеры ладов (Dots) */}
           {[3, 5, 7, 9, 12, 15].map(f => (
             <circle 
               key={f} 
@@ -76,7 +69,6 @@ export const Fretboard: React.FC<FretboardProps> = ({ root, chordNotes, theme, m
             />
           ))}
 
-          {/* Линии Струн */}
           {Array.from({ length: stringsCount }).map((_, i) => (
             <line 
               key={i} 
@@ -87,9 +79,9 @@ export const Fretboard: React.FC<FretboardProps> = ({ root, chordNotes, theme, m
             />
           ))}
 
-          {/* Режим: Все ноты (Notes) */}
           {mode === 'notes' && chordNotes.map((cn, i) => {
-            const cx = cn.fret === 0 ? -12 : (cn.fret - 0.5) * fretWidth;
+            // Сдвигаем маркеры открытых струн чуть правее (-8 вместо -12), чтобы не наезжали на буквы
+            const cx = cn.fret === 0 ? -8 : (cn.fret - 0.5) * fretWidth;
             const cy = getStringY(cn.stringIdx);
             const color = cn.isRoot ? "#3b82f6" : (isDark ? "#333" : "#e4e4e7");
             const textColor = cn.isRoot ? "white" : (isDark ? "#999" : "#666");
@@ -104,10 +96,8 @@ export const Fretboard: React.FC<FretboardProps> = ({ root, chordNotes, theme, m
             );
           })}
 
-          {/* Режим: Аппликатура (Shape) */}
           {mode === 'shape' && fingering && (
             <g>
-              {/* Барре */}
               {fingering.barre && (
                 <rect 
                   x={(fingering.barre.fret - 0.5) * fretWidth - 4} 
@@ -118,13 +108,13 @@ export const Fretboard: React.FC<FretboardProps> = ({ root, chordNotes, theme, m
                   fill={isDark ? "white" : "#1e1e1e"}
                 />
               )}
-              {/* Точки зажатия */}
               {fingering.strings.map((fret: any, sIdx: number) => {
                 if (fret === 'x') {
                    return <text key={`x-${sIdx}`} x={-12} y={getStringY(sIdx) + 4} textAnchor="middle" fontSize="10" fill="#ef4444" fontWeight="bold">×</text>;
                 }
                 const actualFret = fret === 0 ? 0 : fret;
-                const cx = actualFret === 0 ? -12 : (actualFret - 0.5) * fretWidth;
+                // Сдвигаем открытую струну в режиме Shape
+                const cx = actualFret === 0 ? -8 : (actualFret - 0.5) * fretWidth;
                 const cy = getStringY(sIdx);
                 
                 return (
@@ -145,7 +135,6 @@ export const Fretboard: React.FC<FretboardProps> = ({ root, chordNotes, theme, m
             </g>
           )}
 
-          {/* Названия струн слева */}
           {stringNames.map((name, i) => (
             <text key={i} x={-28} y={i * stringHeight + 4} fontSize="9" fontWeight="900" fill={isDark ? "#444" : "#ccc"}>
               {name}
