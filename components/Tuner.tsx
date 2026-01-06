@@ -21,6 +21,7 @@ export const Tuner: React.FC<TunerProps> = ({ theme = 'dark' }) => {
   const [cents, setCents] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(true);
+  const [isSuspended, setIsSuspended] = useState(false);
 
   const isDark = theme === 'dark';
 
@@ -29,31 +30,56 @@ export const Tuner: React.FC<TunerProps> = ({ theme = 'dark' }) => {
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
 
-  // Рефы для сглаживания (EMA - Exponential Moving Average)
   const smoothedCentsRef = useRef<number>(0);
-  const smoothingFactor = 0.15; // Чем меньше, тем плавнее (0.1 - 0.2 идеал)
+  const smoothingFactor = 0.15;
   const lastDetectedNoteRef = useRef<string>('--');
 
   const startTuner = async () => {
     setIsRequesting(true);
     setError(null);
+    setIsSuspended(false);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      
       const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
       const ctx = new AudioContextClass();
       audioCtxRef.current = ctx;
+
+      // Важно для iOS: пробуем возобновить контекст сразу
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 2048; // Достаточно для гитарного диапазона
+      analyser.fftSize = 2048;
       source.connect(analyser);
       analyserRef.current = analyser;
+
       setIsRequesting(false);
-      updatePitch();
+      
+      // Если контекст всё еще suspended (защита Safari), просим кликнуть
+      if (ctx.state === 'suspended') {
+        setIsSuspended(true);
+      } else {
+        updatePitch();
+      }
     } catch (err) {
       setError('Microphone access denied or not supported');
       setIsRequesting(false);
       console.error(err);
+    }
+  };
+
+  const handleResume = async () => {
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      await audioCtxRef.current.resume();
+      if (audioCtxRef.current.state === 'running') {
+        setIsSuspended(false);
+        updatePitch();
+      }
     }
   };
 
@@ -69,7 +95,7 @@ export const Tuner: React.FC<TunerProps> = ({ theme = 'dark' }) => {
   }, []);
 
   const updatePitch = () => {
-    if (!analyserRef.current || !audioCtxRef.current) return;
+    if (!analyserRef.current || !audioCtxRef.current || audioCtxRef.current.state !== 'running') return;
     
     const bufferLength = analyserRef.current.fftSize;
     const buffer = new Float32Array(bufferLength);
@@ -79,20 +105,16 @@ export const Tuner: React.FC<TunerProps> = ({ theme = 'dark' }) => {
     
     if (freq !== -1) {
       const { noteName, centsOff } = getNoteFromFreq(freq);
-      
-      // Сглаживаем отклонение (cents)
       smoothedCentsRef.current = smoothedCentsRef.current * (1 - smoothingFactor) + centsOff * smoothingFactor;
       
-      // Обновляем состояние только если есть значимое изменение или сменилась нота
       if (Math.abs(smoothedCentsRef.current - cents) > 0.1 || noteName !== lastDetectedNoteRef.current) {
         setCents(smoothedCentsRef.current);
         setNote(noteName);
         lastDetectedNoteRef.current = noteName;
       }
     } else {
-      // Плавный возврат к центру при потере сигнала (опционально)
       if (Math.abs(smoothedCentsRef.current) > 0.5) {
-        smoothedCentsRef.current *= 0.9;
+        smoothedCentsRef.current *= 0.85; // Плавно возвращаем к нулю
         setCents(smoothedCentsRef.current);
       }
     }
@@ -108,8 +130,6 @@ export const Tuner: React.FC<TunerProps> = ({ theme = 'dark' }) => {
       rms += val * val;
     }
     rms = Math.sqrt(rms / SIZE);
-    
-    // Порог шума (чуть выше для отсечения фонового гула)
     if (rms < 0.015) return -1;
 
     let r1 = 0, r2 = SIZE - 1, thres = 0.2;
@@ -172,21 +192,31 @@ export const Tuner: React.FC<TunerProps> = ({ theme = 'dark' }) => {
           <p className="text-zinc-500 text-sm mb-8 max-w-[240px]">{error}</p>
           <button onClick={startTuner} className="bg-blue-600 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-lg active:scale-95 transition-transform">Retry</button>
         </div>
+      ) : isSuspended ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-in fade-in zoom-in-95 duration-500">
+           <button 
+             onClick={handleResume}
+             className={`group relative w-32 h-32 rounded-full flex items-center justify-center transition-all active:scale-90 ${isDark ? 'bg-zinc-900 border border-white/10' : 'bg-white border border-zinc-200 shadow-xl'}`}
+           >
+             <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping opacity-50"></div>
+             <svg className={`w-12 h-12 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+             </svg>
+           </button>
+           <h2 className={`text-xl font-black mt-8 uppercase tracking-widest ${isDark ? 'text-white' : 'text-zinc-900'}`}>Tap to Tune</h2>
+           <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-2">Required by iOS Safari</p>
+        </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-between py-10 animate-in fade-in duration-700">
           <div className="relative w-full flex flex-col items-center px-6">
              <div className="w-full max-w-sm aspect-[2/1] relative overflow-hidden">
                 <svg viewBox="0 0 200 100" className="w-full">
-                   {/* Шкала */}
                    <path d="M20,90 A80,80 0 0,1 180,90" fill="none" stroke={isDark ? "#1c1c1e" : "#e4e4e7"} strokeWidth="15" strokeLinecap="round" />
-                   {/* Центральная метка */}
                    <line x1="100" y1="10" x2="100" y2="25" stroke={Math.abs(cents) < 3 ? '#22c55e' : '#3b82f6'} strokeWidth="3" />
                    
-                   {/* Стрелка */}
                    <g style={{ 
                       transform: `rotate(${cents * 0.9}deg)`, 
                       transformOrigin: '100px 90px',
-                      // Использование transform для плавности вместе с программным сглаживанием
                       transition: 'transform 0.05s linear' 
                    }}>
                       <line x1="100" y1="90" x2="100" y2="15" stroke={Math.abs(cents) < 5 ? '#22c55e' : '#ef4444'} strokeWidth="2" strokeLinecap="round" />
