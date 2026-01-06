@@ -11,14 +11,10 @@ const sectionRegex = new RegExp(`^\\s*[\\[\\(]?(${sectionKeywords})(?:\\s*\\d+)?
 
 /** 
  * Улучшенное регулярное выражение для аккордов.
- * Изменено: суффиксы проверяются более жадно, чтобы Cmaj7 не превращался в Cm.
- * Используем границы слов и исключаем захват частей обычных слов.
+ * Позволяет корректно захватывать тонику со знаком # или b.
  */
-export const chordRegex = /\b[A-G][#b]?(?:maj7?|maj9?|maj13?|min7?|m7b5|m9|m11|m13|sus[24]|add[249]|dim7?|aug|alt|m|M|[\d\/\+#b])*(?![a-z\s]{2,})\b/g;
+export const chordRegex = /\b[A-G][#b]?(?:maj7?|maj9?|maj13?|min7?|m7b5|m7|m9|m11|m13|sus[24]|add11|add[249]|6sus2|dim7?|aug|alt|m|M|6|7|[\d\/\+#b])*(?![a-z\s]{2,})\b/g;
 
-/**
- * Проверка, является ли строка строкой с аккордами.
- */
 export const isChordLine = (line: string): boolean => {
   const trimmed = line.trim();
   if (!trimmed) return false;
