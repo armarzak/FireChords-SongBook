@@ -20,6 +20,7 @@ const App: React.FC = () => {
   const [sharedSong, setSharedSong] = useState<Song | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const [isAppReady, setIsAppReady] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark') || 'dark';
   });
@@ -31,9 +32,9 @@ const App: React.FC = () => {
       initApp(currentUser);
     } else {
       setState(AppState.AUTH);
+      setIsAppReady(true);
     }
     
-    // Блокировка скролла для iOS
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';
@@ -52,31 +53,41 @@ const App: React.FC = () => {
   const initApp = async (u: User) => {
     setIsSyncing(true);
     try {
-      // 1. Сначала загружаем то, что есть в телефоне
-      const local = await storageService.getSongsLocal();
-      if (local.length > 0) setSongs(local);
+      // 1. Мгновенная загрузка из локальной памяти устройства
+      const localSongs = await storageService.getSongsLocal();
+      setSongs(localSongs);
+      setIsAppReady(true);
 
-      // 2. Проверяем облако
+      // 2. Фоновая синхронизация с облаком
       if (storageService.isCloudEnabled()) {
-        const cloud = await storageService.restoreLibraryFromCloud(u);
+        const cloudSongs = await storageService.restoreLibraryFromCloud(u);
         
-        if (cloud !== null) {
+        if (cloudSongs !== null) {
           setIsOnline(true);
           
-          if (cloud.length > 0) {
-            // Если в облаке что-то есть - это наш приоритет
-            setSongs(cloud);
-            await storageService.saveSongsBulk(cloud);
-          } else if (local.length > 0) {
-            // Если в облаке пусто, а локально есть песни - заливаем их в облако
-            console.log("[Sync] Empty cloud, pushing local data...");
-            await storageService.syncLibraryWithCloud(local, u);
+          // Слияние данных: Облако + Локальные (которых нет в облаке)
+          const mergedMap = new Map<string, Song>();
+          // Сначала берем локальные
+          localSongs.forEach(s => mergedMap.set(s.id, s));
+          // Затем перезаписываем или добавляем из облака (облако - приоритет для старых ID)
+          cloudSongs.forEach(s => mergedMap.set(s.id, s));
+          
+          const finalSongs = Array.from(mergedMap.values());
+          setSongs(finalSongs);
+          
+          // Обновляем локальную базу актуальным списком
+          await storageService.saveSongsBulk(finalSongs);
+          
+          // Если локально было что-то новое, чего нет в облаке - заливаем в облако
+          if (localSongs.length > cloudSongs.length) {
+            await storageService.syncLibraryWithCloud(finalSongs, u);
           }
         }
       }
     } catch (e) {
       console.error("[App] Init error:", e);
       setIsOnline(false);
+      setIsAppReady(true);
     } finally {
       setIsSyncing(false);
     }
@@ -101,6 +112,14 @@ const App: React.FC = () => {
 
   const currentSong = sharedSong || songs.find(s => s.id === currentSongId);
   const navBgClass = theme === 'light' ? 'bg-white/90 border-zinc-200' : 'bg-zinc-900/95 border-white/5';
+
+  if (!isAppReady) {
+    return (
+      <div className={`h-full w-full flex items-center justify-center ${theme === 'light' ? 'bg-[#f8f9fa]' : 'bg-[#121212]'}`}>
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className={`h-full w-full select-none flex flex-col fixed inset-0 font-sans transition-colors duration-300 ${theme === 'light' ? 'bg-[#f8f9fa] text-zinc-900' : 'bg-[#121212] text-white'}`}>
@@ -136,26 +155,35 @@ const App: React.FC = () => {
             existingArtists={existingArtists} 
             onSave={async d => {
               const id = currentSongId || 's-'+Date.now();
-              const newSong: Song = currentSongId 
-                ? { ...currentSong!, ...d } as Song
-                : { id, title: d.title || 'Untitled', artist: d.artist || 'Unknown', content: d.content || '', transpose: 0, authorName: user?.stageName } as Song;
+              const newSong: Song = {
+                id,
+                title: d.title || 'Untitled',
+                artist: d.artist || 'Various',
+                content: d.content || '',
+                transpose: currentSong?.transpose || 0,
+                authorName: user?.stageName || 'Me',
+                authorId: user?.id,
+                is_public: false
+              };
               
               const updatedSongsList = currentSongId 
                 ? songs.map(s => s.id === id ? newSong : s)
                 : [newSong, ...songs];
 
               setSongs(updatedSongsList);
+              // Ждем подтверждения сохранения в IndexedDB
               await storageService.saveSongLocal(newSong);
               
               if (user) {
-                const cloudResult = await storageService.syncLibraryWithCloud(updatedSongsList, user);
-                if (cloudResult.success) setIsOnline(true);
+                storageService.syncLibraryWithCloud(updatedSongsList, user).then(res => {
+                  if (res.success) setIsOnline(true);
+                });
               }
 
               setCurrentSongId(null);
               setSharedSong(null);
               setState(AppState.LIST);
-              showToast("Saved & Synced");
+              showToast("Saved to Memory");
             }} 
             onDelete={async id => {
               await storageService.deleteSongLocal(id);
@@ -176,7 +204,12 @@ const App: React.FC = () => {
         )}
 
         {state === AppState.PERFORMANCE && currentSong && (
-          <PerformanceView song={currentSong} theme={theme} onClose={() => { setSharedSong(null); setCurrentSongId(null); setState(AppState.LIST); }} onEdit={() => setState(AppState.EDIT)} onUpdateTranspose={()=>{}} />
+          <PerformanceView song={currentSong} theme={theme} onClose={() => { setSharedSong(null); setCurrentSongId(null); setState(AppState.LIST); }} onEdit={() => setState(AppState.EDIT)} onUpdateTranspose={(id, val) => {
+             const updated = songs.map(s => s.id === id ? {...s, transpose: val} : s);
+             setSongs(updated);
+             const s = updated.find(x => x.id === id);
+             if (s) storageService.saveSongLocal(s);
+          }} />
         )}
       </div>
 

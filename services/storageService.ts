@@ -1,6 +1,6 @@
 
 import { Song, User } from '../types';
-import { Dexie, type Table } from 'dexie';
+import Dexie, { type Table } from 'dexie';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://nakmccxvygrotpdaplwh.supabase.co';
@@ -18,25 +18,31 @@ try {
   console.error("Supabase Init error:", e);
 }
 
-const requestPersistence = async () => {
-  if (navigator.storage && navigator.storage.persist) {
-    try {
-      await navigator.storage.persist();
-    } catch (e) {}
-  }
-};
-requestPersistence();
-
-export interface SongbookDatabase extends Dexie {
+// Fixed: Using type intersection with the default Dexie import ensures all instance methods are available
+export type SongbookDatabase = Dexie & {
   songs: Table<Song>;
-}
+};
 
-const dexieInstance = new Dexie('GuitarSongbookDB_v3');
-dexieInstance.version(1).stores({
+// Fixed: Correctly cast the new instance to our extended type
+const db = new Dexie('GuitarSongbookDB_v4') as SongbookDatabase;
+
+// Fixed: version() is an instance method available on Dexie
+db.version(1).stores({
   songs: 'id, title, artist, authorId, is_public'
 });
 
-export const db = dexieInstance as SongbookDatabase;
+// Гарантируем открытие БД
+const ensureDbOpen = async () => {
+  // Fixed: isOpen is a property (boolean) in Dexie, not a method
+  if (!db.isOpen) {
+    try {
+      // Fixed: open() is an instance method available on Dexie
+      await db.open();
+    } catch (err) {
+      console.error("Failed to open dexie db:", err);
+    }
+  }
+};
 
 const USER_KEY = 'guitar_songbook_user';
 
@@ -91,19 +97,25 @@ export const storageService = {
   },
 
   getSongsLocal: async (): Promise<Song[]> => {
+    await ensureDbOpen();
     return await db.songs.toArray();
   },
 
   saveSongLocal: async (song: Song) => {
-    return await db.songs.put(song);
+    await ensureDbOpen();
+    // Очищаем объект перед сохранением, чтобы Dexie не ругался на лишние поля
+    const cleanSong = { ...song };
+    return await db.songs.put(cleanSong);
   },
 
   saveSongsBulk: async (songs: Song[]) => {
     if (songs.length === 0) return;
+    await ensureDbOpen();
     return await db.songs.bulkPut(songs);
   },
 
   deleteSongLocal: async (id: string) => {
+    await ensureDbOpen();
     await db.songs.delete(id);
     const user = storageService.getUser();
     if (supabase && user) {
@@ -151,15 +163,11 @@ export const storageService = {
   },
 
   publishToForum: async (song: Song, user: User): Promise<{success: boolean, error?: string}> => {
-    if (!supabase || !user) return { success: false, error: 'Supabase offline or user missing' };
+    if (!supabase || !user) return { success: false, error: 'Supabase offline' };
     try {
-      // Генерируем уникальный ID для публикации на доску
       const pubId = song.id.startsWith('pub-') ? song.id : `pub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-      
       const payload = {
         id: pubId,
-        // Возвращаем user_id обратно к ID пользователя, так как NULL нарушил RLS политику.
-        // Если это все еще вызывает RLS ошибку, значит политика требует аутентификации Supabase Auth.
         user_id: String(user.id), 
         title: (song.title || 'Untitled').trim(),
         artist: (song.artist || 'Unknown').trim(),
@@ -168,22 +176,11 @@ export const storageService = {
         author_name: (user.stageName || 'Anonymous').trim(),
         is_public: true
       };
-
-      const { error } = await supabase.from('songs').insert(payload);
-
-      if (error) {
-        // Если запись уже существует, пробуем обновить ее (upsert)
-        if (error.code === '23505') {
-            const { error: upsertError } = await supabase.from('songs').upsert(payload);
-            if (upsertError) return { success: false, error: upsertError.message };
-            return { success: true };
-        }
-        console.warn("Board Publish error:", error);
-        return { success: false, error: error.message };
-      }
+      const { error } = await supabase.from('songs').upsert(payload);
+      if (error) return { success: false, error: error.message };
       return { success: true };
     } catch (e: any) {
-      return { success: false, error: e.message || 'Exception occurred' };
+      return { success: false, error: e.message };
     }
   }
 };
