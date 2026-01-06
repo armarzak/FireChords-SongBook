@@ -53,33 +53,29 @@ const App: React.FC = () => {
   const initApp = async (u: User) => {
     setIsSyncing(true);
     try {
-      // 1. Мгновенная загрузка из локальной памяти устройства
+      // 1. Сначала локальные
       const localSongs = await storageService.getSongsLocal();
       setSongs(localSongs);
       setIsAppReady(true);
 
-      // 2. Фоновая синхронизация с облаком
+      // 2. Затем фоновая сверка с облаком
       if (storageService.isCloudEnabled()) {
         const cloudSongs = await storageService.restoreLibraryFromCloud(u);
         
         if (cloudSongs !== null) {
           setIsOnline(true);
           
-          // Слияние данных: Облако + Локальные (которых нет в облаке)
           const mergedMap = new Map<string, Song>();
-          // Сначала берем локальные
           localSongs.forEach(s => mergedMap.set(s.id, s));
-          // Затем перезаписываем или добавляем из облака (облако - приоритет для старых ID)
           cloudSongs.forEach(s => mergedMap.set(s.id, s));
           
           const finalSongs = Array.from(mergedMap.values());
           setSongs(finalSongs);
           
-          // Обновляем локальную базу актуальным списком
           await storageService.saveSongsBulk(finalSongs);
           
-          // Если локально было что-то новое, чего нет в облаке - заливаем в облако
-          if (localSongs.length > cloudSongs.length) {
+          // Синхронизируем только если есть разница
+          if (localSongs.length !== cloudSongs.length) {
             await storageService.syncLibraryWithCloud(finalSongs, u);
           }
         }
@@ -146,7 +142,27 @@ const App: React.FC = () => {
         )}
         {state === AppState.EXPLORER && <ChordExplorer theme={theme} />}
         {state === AppState.DICTIONARY && <ChordDictionary theme={theme} />}
-        {state === AppState.FORUM && <CommunityFeed onImport={async s => { const n = {...s, id: 'pub-'+s.id}; setSongs([n, ...songs]); await storageService.saveSongLocal(n); showToast("Imported"); }} onView={s => { setSharedSong(s); setCurrentSongId(null); setState(AppState.PERFORMANCE); }} theme={theme} />}
+        {state === AppState.FORUM && (
+          <CommunityFeed 
+            onImport={async s => { 
+              // ИСПРАВЛЕНИЕ: Импортированная песня становится приватной копией с новым ID
+              const importedSong: Song = {
+                ...s,
+                id: 's-imp-' + Date.now(),
+                is_public: false,
+                authorId: user?.id,
+                authorName: s.authorName + ' (Cover)'
+              };
+              const updated = [importedSong, ...songs];
+              setSongs(updated);
+              await storageService.saveSongLocal(importedSong);
+              if (user) storageService.syncLibraryWithCloud(updated, user);
+              showToast("Added to Songs"); 
+            }} 
+            onView={s => { setSharedSong(s); setCurrentSongId(null); setState(AppState.PERFORMANCE); }} 
+            theme={theme} 
+          />
+        )}
         {state === AppState.TUNER && <Tuner theme={theme} />}
         
         {state === AppState.EDIT && (
@@ -163,7 +179,7 @@ const App: React.FC = () => {
                 transpose: currentSong?.transpose || 0,
                 authorName: user?.stageName || 'Me',
                 authorId: user?.id,
-                is_public: false
+                is_public: false // Новые песни всегда приватные по умолчанию
               };
               
               const updatedSongsList = currentSongId 
@@ -171,7 +187,6 @@ const App: React.FC = () => {
                 : [newSong, ...songs];
 
               setSongs(updatedSongsList);
-              // Ждем подтверждения сохранения в IndexedDB
               await storageService.saveSongLocal(newSong);
               
               if (user) {
@@ -183,7 +198,7 @@ const App: React.FC = () => {
               setCurrentSongId(null);
               setSharedSong(null);
               setState(AppState.LIST);
-              showToast("Saved to Memory");
+              showToast("Song Saved");
             }} 
             onDelete={async id => {
               await storageService.deleteSongLocal(id);

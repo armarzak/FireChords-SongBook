@@ -18,25 +18,18 @@ try {
   console.error("Supabase Init error:", e);
 }
 
-// Fixed: Using type intersection with the default Dexie import ensures all instance methods are available
 export type SongbookDatabase = Dexie & {
   songs: Table<Song>;
 };
 
-// Fixed: Correctly cast the new instance to our extended type
 const db = new Dexie('GuitarSongbookDB_v4') as SongbookDatabase;
-
-// Fixed: version() is an instance method available on Dexie
 db.version(1).stores({
   songs: 'id, title, artist, authorId, is_public'
 });
 
-// Гарантируем открытие БД
 const ensureDbOpen = async () => {
-  // Fixed: isOpen is a property (boolean) in Dexie, not a method
   if (!db.isOpen) {
     try {
-      // Fixed: open() is an instance method available on Dexie
       await db.open();
     } catch (err) {
       console.error("Failed to open dexie db:", err);
@@ -103,7 +96,6 @@ export const storageService = {
 
   saveSongLocal: async (song: Song) => {
     await ensureDbOpen();
-    // Очищаем объект перед сохранением, чтобы Dexie не ругался на лишние поля
     const cleanSong = { ...song };
     return await db.songs.put(cleanSong);
   },
@@ -126,7 +118,12 @@ export const storageService = {
   syncLibraryWithCloud: async (songs: Song[], user: User): Promise<{success: boolean, error?: string}> => {
     if (!supabase || !user) return { success: false, error: 'Storage Not Init' };
     try {
-      const payload = songs.map(s => mapToDb(s, user.id));
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Синхронизируем только ПРИВАТНЫЕ песни. 
+      // Публичные (Board) живут своей жизнью.
+      const privateSongs = songs.filter(s => !s.is_public);
+      if (privateSongs.length === 0) return { success: true };
+
+      const payload = privateSongs.map(s => mapToDb(s, user.id));
       const { error } = await supabase.from('songs').upsert(payload);
       if (error) return { success: false, error: error.message };
       return { success: true };
@@ -138,7 +135,14 @@ export const storageService = {
   restoreLibraryFromCloud: async (user: User): Promise<Song[] | null> => {
     if (!supabase || !user) return null;
     try {
-      const { data, error } = await supabase.from('songs').select('*').eq('user_id', user.id);
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Загружаем только приватные копии, 
+      // чтобы не было дублей с тем, что вы опубликовали на Board.
+      const { data, error } = await supabase
+        .from('songs')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_public', false);
+        
       if (error) return null;
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
@@ -165,6 +169,7 @@ export const storageService = {
   publishToForum: async (song: Song, user: User): Promise<{success: boolean, error?: string}> => {
     if (!supabase || !user) return { success: false, error: 'Supabase offline' };
     try {
+      // Публикация создает отдельную запись в БД с флагом is_public=true
       const pubId = song.id.startsWith('pub-') ? song.id : `pub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
       const payload = {
         id: pubId,
