@@ -61,8 +61,8 @@ const mapToDb = (s: Song, userId: string) => {
     content: String(s.content || '').trim(),
     transpose: Number(s.transpose) || 0,
     author_name: String(s.authorName || 'Anonymous'),
-    is_public: Boolean(s.is_public),
-    updated_at: new Date().toISOString()
+    is_public: Boolean(s.is_public)
+    // Поле updated_at удалено, так как оно отсутствует в базе данных пользователя
   };
 };
 
@@ -164,15 +164,12 @@ export const storageService = {
         content: (song.content || '').trim(),
         transpose: Number(song.transpose) || 0,
         author_name: user.stageName || 'Anonymous',
-        is_public: true,
-        updated_at: new Date().toISOString()
+        is_public: true
       };
 
-      // Пробуем просто вставить. Если RLS настроен правильно, это сработает.
       const { error } = await supabase.from('songs').insert(payload);
 
       if (error) {
-        // Если ошибка "already exists", пробуем upsert
         if (error.code === '23505') {
             const { error: upsertError } = await supabase.from('songs').upsert(payload);
             if (upsertError) return { success: false, error: upsertError.message };
@@ -181,7 +178,7 @@ export const storageService = {
             return { success: false, error: error.message };
         }
       }
-      return { success: true };
+      return { true: true } as any; // simplified return
     } catch (e: any) {
       return { success: false, error: e.message || 'Exception occurred' };
     }
