@@ -25,21 +25,23 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
   const handlePublish = async () => {
     const user = storageService.getUser();
     if (!user) {
-        onNotify("Please login to publish");
+        onNotify("Login required");
         return;
     }
 
     if (!title.trim() || !content.trim()) {
-      onNotify("Title and content required!");
+      onNotify("Missing Title/Content");
       return;
     }
     
     setIsPublishing(true);
+    
+    // Создаем чистый объект песни для публикации
     const songData: Song = {
         id: song?.id || 's-' + Date.now(),
         title: title.trim(),
         artist: artist.trim() || 'Various',
-        content,
+        content: content.trim(),
         transpose: song?.transpose || 0,
         authorName: user.stageName,
         is_public: true
@@ -50,13 +52,21 @@ export const SongEditor: React.FC<SongEditorProps> = ({ song, existingArtists, o
       if (result.success) {
         onNotify("Live on Board! 🚀");
       } else {
-        // Выводим более понятную ошибку для пользователя
-        const errorMsg = result.error?.includes('409') ? "Already on board" : "Sync Error";
-        onNotify(errorMsg);
-        console.error("Publish details:", result.error);
+        // Выводим конкретную ошибку сервера для диагностики
+        const errorDetail = result.error || "Unknown Error";
+        console.error("Board Publish Failure:", errorDetail);
+        
+        if (errorDetail.includes("row-level security")) {
+            onNotify("Permission Denied (RLS)");
+        } else if (errorDetail.includes("conflict")) {
+            onNotify("Already Published");
+        } else {
+            onNotify(`Error: ${errorDetail.slice(0, 20)}...`);
+        }
       }
-    } catch (e) {
-        onNotify("Network unreachable");
+    } catch (e: any) {
+        onNotify("Network Fail");
+        console.error(e);
     } finally {
       setIsPublishing(false);
     }

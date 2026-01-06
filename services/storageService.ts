@@ -16,11 +16,12 @@ try {
   console.error("Supabase Init error:", e);
 }
 
-// Запрос на персистентное хранилище (специфично для iOS/PWA)
 const requestPersistence = async () => {
   if (navigator.storage && navigator.storage.persist) {
-    const isPersisted = await navigator.storage.persist();
-    console.log(`[Storage] Persisted: ${isPersisted}`);
+    try {
+      const isPersisted = await navigator.storage.persist();
+      console.log(`[Storage] Persisted: ${isPersisted}`);
+    } catch (e) {}
   }
 };
 requestPersistence();
@@ -39,28 +40,32 @@ export const db = dexieInstance as SongbookDatabase;
 const USER_KEY = 'guitar_songbook_user';
 
 const mapFromDb = (s: any): Song => ({
-  id: s.id,
-  title: s.title,
-  artist: s.artist,
-  content: s.content,
-  transpose: s.transpose || 0,
-  authorName: s.author_name || 'Anonymous',
-  authorId: s.user_id,
-  createdAt: s.created_at,
-  is_public: s.is_public
-});
-
-const mapToDb = (s: Song, userId: string) => ({
-  id: s.id,
-  user_id: userId,
+  id: String(s.id),
   title: s.title || 'Untitled',
   artist: s.artist || 'Unknown',
   content: s.content || '',
-  transpose: s.transpose || 0,
-  author_name: s.authorName || 'Anonymous',
-  is_public: !!s.is_public,
-  updated_at: new Date().toISOString()
+  transpose: Number(s.transpose) || 0,
+  authorName: s.author_name || 'Anonymous',
+  authorId: s.user_id,
+  createdAt: s.created_at,
+  is_public: Boolean(s.is_public)
 });
+
+const mapToDb = (s: Song, userId: string) => {
+  // Очищаем объект от undefined полей для Supabase
+  const payload: any = {
+    id: String(s.id),
+    user_id: userId,
+    title: String(s.title || 'Untitled').trim(),
+    artist: String(s.artist || 'Unknown').trim(),
+    content: String(s.content || '').trim(),
+    transpose: Number(s.transpose) || 0,
+    author_name: String(s.authorName || 'Anonymous'),
+    is_public: Boolean(s.is_public),
+    updated_at: new Date().toISOString()
+  };
+  return payload;
+};
 
 export const storageService = {
   isCloudEnabled: () => !!supabase,
@@ -71,11 +76,10 @@ export const storageService = {
   },
 
   saveUser: (stageName: string): User => {
-    // Пытаемся сохранить ID пользователя, если он уже был (для восстановления из Dexie)
     const existing = storageService.getUser();
     const newUser: User = {
       id: existing?.id || 'u-' + Math.random().toString(36).substr(2, 9),
-      stageName,
+      stageName: stageName.trim(),
       joinedAt: existing?.joinedAt || new Date().toISOString(),
       avatarColor: existing?.avatarColor || '#3b82f6'
     };
@@ -105,17 +109,16 @@ export const storageService = {
   },
 
   syncLibraryWithCloud: async (songs: Song[], user: User): Promise<{success: boolean, error?: string}> => {
-    if (!supabase || songs.length === 0) return { success: true };
+    if (!supabase || !user) return { success: false, error: 'Not initialized' };
     try {
       const payload = songs.map(s => mapToDb(s, user.id));
-      const { error } = await supabase.from('songs').upsert(payload);
+      const { error } = await supabase.from('songs').upsert(payload, { onConflict: 'id' });
       if (error) {
         console.error("Cloud Sync Error:", error);
         return { success: false, error: error.message };
       }
       return { success: true };
     } catch (e: any) {
-      console.error("Cloud Sync Exception:", e);
       return { success: false, error: e.message };
     }
   },
@@ -124,10 +127,7 @@ export const storageService = {
     if (!supabase) return null;
     try {
       const { data, error } = await supabase.from('songs').select('*').eq('user_id', user.id);
-      if (error) {
-        console.error("Restore Error:", error);
-        return null;
-      }
+      if (error) return null;
       return data ? data.map(mapFromDb) : [];
     } catch (e) {
       return null;
@@ -150,21 +150,33 @@ export const storageService = {
   },
 
   publishToForum: async (song: Song, user: User): Promise<{success: boolean, error?: string}> => {
-    if (!supabase) return { success: false, error: 'Supabase not initialized' };
+    if (!supabase) return { success: false, error: 'Supabase offline' };
     try {
-      const publishedSong = { 
+      // Генерируем ID публикации, если его нет
+      const pubId = song.id.startsWith('pub-') ? song.id : `pub-${user.id.slice(-4)}-${Date.now()}`;
+      
+      const publishedSong: Song = { 
         ...song, 
-        id: song.id.startsWith('pub-') ? song.id : `pub-${song.id}-${Date.now()}`,
+        id: pubId,
         is_public: true, 
         authorName: user.stageName,
         authorId: user.id 
       };
+
       const payload = mapToDb(publishedSong, user.id);
-      const { error } = await supabase.from('songs').insert(payload);
-      if (error) return { success: false, error: error.message };
+      
+      // Используем upsert для гибкости
+      const { error } = await supabase
+        .from('songs')
+        .upsert(payload, { onConflict: 'id' });
+
+      if (error) {
+        console.warn("Supabase Board Error:", error);
+        return { success: false, error: error.message };
+      }
       return { success: true };
     } catch (e: any) {
-      return { success: false, error: e.message || 'Network error' };
+      return { success: false, error: e.message || 'Connection failed' };
     }
   }
 };
