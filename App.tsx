@@ -53,12 +53,10 @@ const App: React.FC = () => {
   const initApp = async (u: User) => {
     setIsSyncing(true);
     try {
-      // 1. Сначала локальные
       const localSongs = await storageService.getSongsLocal();
       setSongs(localSongs);
       setIsAppReady(true);
 
-      // 2. Затем фоновая сверка с облаком
       if (storageService.isCloudEnabled()) {
         const cloudSongs = await storageService.restoreLibraryFromCloud(u);
         
@@ -74,7 +72,6 @@ const App: React.FC = () => {
           
           await storageService.saveSongsBulk(finalSongs);
           
-          // Синхронизируем только если есть разница
           if (localSongs.length !== cloudSongs.length) {
             await storageService.syncLibraryWithCloud(finalSongs, u);
           }
@@ -99,6 +96,23 @@ const App: React.FC = () => {
     setUser(newUser);
     initApp(newUser);
     setState(AppState.LIST);
+  };
+
+  const handleDeleteFromBoard = async (songId: string): Promise<boolean> => {
+    if (!user) return false;
+    try {
+      const result = await storageService.deleteFromForum(songId, user);
+      if (result.success) {
+        showToast("Removed from Board");
+        return true;
+      } else {
+        showToast("Delete failed");
+        return false;
+      }
+    } catch (e) {
+      showToast("Network Error");
+      return false;
+    }
   };
 
   const existingArtists = useMemo(() => {
@@ -145,7 +159,6 @@ const App: React.FC = () => {
         {state === AppState.FORUM && (
           <CommunityFeed 
             onImport={async s => { 
-              // ИСПРАВЛЕНИЕ: Импортированная песня становится приватной копией с новым ID
               const importedSong: Song = {
                 ...s,
                 id: 's-imp-' + Date.now(),
@@ -160,6 +173,7 @@ const App: React.FC = () => {
               showToast("Added to Songs"); 
             }} 
             onView={s => { setSharedSong(s); setCurrentSongId(null); setState(AppState.PERFORMANCE); }} 
+            onDelete={handleDeleteFromBoard}
             theme={theme} 
           />
         )}
@@ -179,7 +193,7 @@ const App: React.FC = () => {
                 transpose: currentSong?.transpose || 0,
                 authorName: user?.stageName || 'Me',
                 authorId: user?.id,
-                is_public: false // Новые песни всегда приватные по умолчанию
+                is_public: false 
               };
               
               const updatedSongsList = currentSongId 

@@ -6,6 +6,7 @@ import { storageService } from '../services/storageService';
 interface CommunityFeedProps {
   onImport: (song: Song) => void;
   onView: (song: Song) => void;
+  onDelete?: (songId: string) => Promise<boolean>;
   theme?: 'light' | 'dark';
 }
 
@@ -24,7 +25,7 @@ const AcousticGuitarIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, theme = 'dark' }) => {
+export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, onDelete, theme = 'dark' }) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,7 +60,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
     loadForum();
   };
 
-  const handleDelete = async (e: React.MouseEvent, songId: string) => {
+  const handleDeleteClick = async (e: React.MouseEvent, songId: string) => {
     e.stopPropagation();
     if (!currentUser) return;
 
@@ -69,16 +70,12 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
       return;
     }
 
-    try {
-      const res = await storageService.deleteFromForum(songId, currentUser);
-      if (res.success) {
+    if (onDelete) {
+      const success = await onDelete(songId);
+      if (success) {
         setSongs(prev => prev.filter(s => s.id !== songId));
         setConfirmDeleteId(null);
-      } else {
-        alert("Error deleting song: " + res.error);
       }
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -199,7 +196,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
                             <div className="flex items-center gap-2">
                                 {currentUser && song.authorId === currentUser.id && (
                                   <button 
-                                    onClick={(e) => handleDelete(e, song.id)}
+                                    onClick={(e) => handleDeleteClick(e, song.id)}
                                     className={`shrink-0 p-2.5 rounded-xl transition-all border ${confirmDeleteId === song.id ? 'bg-red-600 border-red-500 text-white' : (isDark ? 'bg-zinc-800 border-white/5 text-red-500/70 hover:text-red-500' : 'bg-red-50 border-red-100 text-red-400 hover:text-red-500')}`}
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
