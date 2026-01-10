@@ -31,8 +31,10 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.SONGS);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const isDark = theme === 'dark';
+  const currentUser = storageService.getUser();
 
   const loadForum = async () => {
     setError(null);
@@ -55,6 +57,29 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
   const handleRefresh = () => {
     setRefreshing(true);
     loadForum();
+  };
+
+  const handleDelete = async (e: React.MouseEvent, songId: string) => {
+    e.stopPropagation();
+    if (!currentUser) return;
+
+    if (confirmDeleteId !== songId) {
+      setConfirmDeleteId(songId);
+      setTimeout(() => setConfirmDeleteId(null), 3000);
+      return;
+    }
+
+    try {
+      const res = await storageService.deleteFromForum(songId, currentUser);
+      if (res.success) {
+        setSongs(prev => prev.filter(s => s.id !== songId));
+        setConfirmDeleteId(null);
+      } else {
+        alert("Error deleting song: " + res.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const processedData = useMemo(() => {
@@ -87,7 +112,6 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
     <div className={`flex flex-col h-full pt-[env(safe-area-inset-top)] ${isDark ? 'bg-[#121212]' : 'bg-[#f8f9fa]'}`}>
       <div className={`px-6 py-6 flex justify-between items-end border-b backdrop-blur-xl ${isDark ? 'border-white/5 bg-zinc-900/50' : 'border-zinc-200 bg-white/80'}`}>
         <div className="flex items-center gap-4">
-          {/* Triple Acoustic Guitar Logo - recognizably guitars now */}
           <div className="relative w-16 h-12 flex items-center justify-center">
              <AcousticGuitarIcon className={`absolute w-10 h-10 transition-colors -translate-x-4 rotate-[-25deg] ${isDark ? 'text-blue-500 opacity-30' : 'text-blue-400 opacity-40'}`} />
              <AcousticGuitarIcon className={`absolute w-10 h-10 transition-colors translate-x-4 rotate-[25deg] ${isDark ? 'text-blue-500 opacity-30' : 'text-blue-400 opacity-40'}`} />
@@ -165,16 +189,31 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
                         >
                         <div className="flex justify-between items-center">
                             <div className="flex-1 pr-4 truncate">
-                            <h3 className={`text-[17px] font-bold leading-tight truncate ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{song.title}</h3>
-                            <p className="text-blue-500 font-black text-[9px] uppercase tracking-widest mt-0.5 truncate">{song.artist}</p>
+                              <h3 className={`text-[17px] font-bold leading-tight truncate ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{song.title}</h3>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-blue-500 font-black text-[9px] uppercase tracking-widest truncate">{song.artist}</p>
+                                <span className="text-[8px] text-zinc-600 font-bold opacity-50">• {song.authorName}</span>
+                              </div>
                             </div>
                             
-                            <button 
-                            onClick={(e) => { e.stopPropagation(); onImport(song); }}
-                            className={`shrink-0 px-4 py-2 rounded-xl font-black text-[8px] uppercase tracking-widest active:scale-90 transition-all border ${isDark ? 'bg-zinc-800 hover:bg-zinc-700 text-white border-white/5' : 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'}`}
-                            >
-                            Add
-                            </button>
+                            <div className="flex items-center gap-2">
+                                {currentUser && song.authorId === currentUser.id && (
+                                  <button 
+                                    onClick={(e) => handleDelete(e, song.id)}
+                                    className={`shrink-0 p-2.5 rounded-xl transition-all border ${confirmDeleteId === song.id ? 'bg-red-600 border-red-500 text-white' : (isDark ? 'bg-zinc-800 border-white/5 text-red-500/70 hover:text-red-500' : 'bg-red-50 border-red-100 text-red-400 hover:text-red-500')}`}
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                )}
+                                <button 
+                                onClick={(e) => { e.stopPropagation(); onImport(song); }}
+                                className={`shrink-0 px-4 py-2 rounded-xl font-black text-[8px] uppercase tracking-widest active:scale-90 transition-all border ${isDark ? 'bg-zinc-800 hover:bg-zinc-700 text-white border-white/5' : 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'}`}
+                                >
+                                Add
+                                </button>
+                            </div>
                         </div>
                         </div>
                     ))}

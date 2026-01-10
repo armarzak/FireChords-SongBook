@@ -118,8 +118,6 @@ export const storageService = {
   syncLibraryWithCloud: async (songs: Song[], user: User): Promise<{success: boolean, error?: string}> => {
     if (!supabase || !user) return { success: false, error: 'Storage Not Init' };
     try {
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Синхронизируем только ПРИВАТНЫЕ песни. 
-      // Публичные (Board) живут своей жизнью.
       const privateSongs = songs.filter(s => !s.is_public);
       if (privateSongs.length === 0) return { success: true };
 
@@ -135,8 +133,6 @@ export const storageService = {
   restoreLibraryFromCloud: async (user: User): Promise<Song[] | null> => {
     if (!supabase || !user) return null;
     try {
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Загружаем только приватные копии, 
-      // чтобы не было дублей с тем, что вы опубликовали на Board.
       const { data, error } = await supabase
         .from('songs')
         .select('*')
@@ -169,7 +165,6 @@ export const storageService = {
   publishToForum: async (song: Song, user: User): Promise<{success: boolean, error?: string}> => {
     if (!supabase || !user) return { success: false, error: 'Supabase offline' };
     try {
-      // Публикация создает отдельную запись в БД с флагом is_public=true
       const pubId = song.id.startsWith('pub-') ? song.id : `pub-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
       const payload = {
         id: pubId,
@@ -182,6 +177,23 @@ export const storageService = {
         is_public: true
       };
       const { error } = await supabase.from('songs').upsert(payload);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  deleteFromForum: async (id: string, user: User): Promise<{success: boolean, error?: string}> => {
+    if (!supabase || !user) return { success: false, error: 'Not authorized' };
+    try {
+      const { error } = await supabase
+        .from('songs')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .eq('is_public', true);
+      
       if (error) return { success: false, error: error.message };
       return { success: true };
     } catch (e: any) {
