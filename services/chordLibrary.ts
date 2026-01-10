@@ -29,6 +29,8 @@ export const chordLibrary: Record<string, ChordFingering[]> = {
   'A7': [{ name: 'A7', strings: ['x', 0, 2, 0, 2, 0], fingers: [null, null, 1, null, 2, null], position: 1 }],
   'Am7': [{ name: 'Am7', strings: ['x', 0, 2, 0, 1, 0], fingers: [null, null, 2, null, 1, null], position: 1 }],
   'Amaj7': [{ name: 'Amaj7', strings: ['x', 0, 2, 1, 2, 0], fingers: [null, null, 2, 1, 3, null], position: 1 }],
+  'Asus4': [{ name: 'Asus4', strings: ['x', 0, 2, 2, 3, 0], fingers: [null, null, 1, 2, 3, null], position: 1 }],
+  'A7sus4': [{ name: 'A7sus4', strings: ['x', 0, 2, 0, 3, 0], fingers: [null, null, 1, null, 3, null], position: 1 }],
   'A9': [{ name: 'A9', strings: ['x', 0, 2, 4, 2, 3], fingers: [null, null, 1, 3, 1, 2], position: 1 }],
   'Am6': [{ name: 'Am6', strings: ['x', 0, 2, 2, 1, 2], fingers: [null, null, 2, 3, 1, 4], position: 1 }],
   'Ammaj7': [{ name: 'Ammaj7', strings: ['x', 0, 2, 1, 1, 0], fingers: [null, null, 2, 1, 1, null], position: 1 }],
@@ -82,6 +84,8 @@ export const chordLibrary: Record<string, ChordFingering[]> = {
 export const getFingerings = (chordName: string): ChordFingering[] => {
   if (!chordName) return [];
   const normalized = normalizeName(chordName);
+  
+  // Сначала ищем точное совпадение в библиотеке пресетов
   if (chordLibrary[normalized]) return chordLibrary[normalized];
 
   const rootMatch = normalized.match(/^[A-G][#b]?/);
@@ -89,10 +93,12 @@ export const getFingerings = (chordName: string): ChordFingering[] => {
   const root = rootMatch[0];
   const suffix = normalized.slice(root.length);
 
-  const supported = ['m', '7', 'maj7', 'm7', 'sus2', 'sus4', 'add9', '6', 'add11', '6sus2', '9', '6', 'maj7', '5', 'aug', 'dim', 'dim7'];
+  // Список поддерживаемых суффиксов для автоматического маппинга
+  const supported = ['m', '7', 'maj7', 'm7', 'sus2', 'sus4', '7sus4', 'add9', '6', 'add11', '6sus2', '9', '6', 'maj7', '5', 'aug', 'dim', 'dim7'];
   for (const s of supported) {
     if (suffix === s && chordLibrary[root + s]) return chordLibrary[root + s];
   }
+  
   if (chordLibrary[root]) return chordLibrary[root];
   return [];
 };

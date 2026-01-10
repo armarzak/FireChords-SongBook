@@ -13,7 +13,7 @@ const ChordReferenceTable: React.FC<{ theme: 'light' | 'dark' }> = ({ theme }) =
   const isDark = theme === 'dark';
   
   const groups = [
-    { title: 'A Group', chords: ['A', 'Am', 'A7', 'Am7', 'Amaj7', 'A9', 'Am6', 'Ammaj7', 'Adim', 'Adim7'] },
+    { title: 'A Group', chords: ['A', 'Am', 'A7', 'Am7', 'Amaj7', 'Asus4', 'A7sus4', 'A9', 'Am6', 'Ammaj7', 'Adim', 'Adim7'] },
     { title: 'B Group', chords: ['B', 'Bm', 'B7', 'B9', 'Bb', 'Bb7'] },
     { title: 'C Group', chords: ['C', 'Cm', 'C7', 'C9', 'C5'] },
     { title: 'D Group', chords: ['D', 'Dm', 'D7', 'D9', 'Daug', 'D5'] },
