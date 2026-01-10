@@ -27,6 +27,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
   
   const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number | null>(null);
+  const isInteractingRef = useRef(false);
   
   const virtualScrollRef = useRef<number>(0);
   const lastAppliedScrollRef = useRef<number>(0);
@@ -43,21 +44,28 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     const padding = 40;
     const availableWidth = containerRef.current.clientWidth - padding;
     let calculatedSize = Math.floor(availableWidth / (maxChars * 0.61));
-    calculatedSize = Math.max(8, Math.min(calculatedSize, 24));
+    calculatedSize = Math.max(12, Math.min(calculatedSize, 24));
     setFontSize(calculatedSize);
   }, [song.content]);
 
   const scrollStep = () => {
-    if (!isScrolling || !containerRef.current) return;
-    const element = containerRef.current;
-    const currentActualScroll = element.scrollTop;
-    if (Math.abs(currentActualScroll - lastAppliedScrollRef.current) > 1) {
-      virtualScrollRef.current = currentActualScroll;
+    if (!isScrolling || !containerRef.current || isInteractingRef.current) {
+      if (isScrolling) requestRef.current = requestAnimationFrame(scrollStep);
+      return;
     }
-    virtualScrollRef.current += (scrollSpeed * 0.6);
+    
+    const element = containerRef.current;
+    
+    // Если позиция была изменена извне (ручной скролл)
+    if (Math.abs(element.scrollTop - lastAppliedScrollRef.current) > 2) {
+      virtualScrollRef.current = element.scrollTop;
+    }
+
+    virtualScrollRef.current += (scrollSpeed * 0.4);
     element.scrollTop = virtualScrollRef.current;
     lastAppliedScrollRef.current = element.scrollTop;
-    if (element.scrollTop + element.clientHeight >= element.scrollHeight - 5) {
+
+    if (element.scrollTop + element.clientHeight >= element.scrollHeight - 2) {
       setIsScrolling(false);
       return;
     }
@@ -76,6 +84,16 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
     }
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
   }, [isScrolling, scrollSpeed]);
+
+  // Обработчики для корректного перехвата скролла пользователем
+  const handleTouchStart = () => { isInteractingRef.current = true; };
+  const handleTouchEnd = () => { 
+    isInteractingRef.current = false;
+    if (containerRef.current) {
+      virtualScrollRef.current = containerRef.current.scrollTop;
+      lastAppliedScrollRef.current = containerRef.current.scrollTop;
+    }
+  };
 
   const renderContent = () => {
     const text = transposeText(song.content, transpose);
@@ -106,7 +124,6 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
                     onClick={(e) => {
                       e.stopPropagation();
                       const rect = e.currentTarget.getBoundingClientRect();
-                      // Инвертируем поповер если он уже открыт для этого аккорда
                       if (popover?.name === chordName) {
                         setPopover(null);
                       } else {
@@ -151,19 +168,22 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         </div>
         
         <div className="flex flex-col items-center flex-1 px-2">
-          <h2 className={`text-[9px] font-black truncate max-w-[100px] mb-1 opacity-50 uppercase tracking-widest text-center ${isDark ? 'text-white' : 'text-zinc-900'}`}>{song.title}</h2>
-          <div className="flex gap-3 items-center">
-             <div className="flex flex-col items-center gap-0.5">
-               <span className="text-[7px] font-black opacity-30 uppercase tracking-tighter">Tr</span>
-               <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`}>
-                 <button onClick={() => { const val = transpose-1; setTranspose(val); onUpdateTranspose(song.id, val); }} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">-</button>
-                 <div className={`min-w-[20px] px-1 flex items-center justify-center text-[8px] font-black tabular-nums ${transpose !== 0 ? (isDark ? 'text-blue-400' : 'text-blue-600') : (isDark ? 'text-zinc-600' : 'text-zinc-400')}`}>
-                   {transpose > 0 ? `+${transpose}` : transpose}
-                 </div>
-                 <button onClick={() => { const val = transpose+1; setTranspose(val); onUpdateTranspose(song.id, val); }} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">+</button>
+          <div className="flex gap-4 items-center mb-1">
+             <div className="flex items-center gap-1 bg-black/20 rounded-lg p-0.5 border border-white/5">
+                <button onClick={() => setFontSize(s => Math.max(10, s - 1))} className="w-6 h-6 flex items-center justify-center text-[10px] font-bold">-</button>
+                <span className="text-[8px] font-black opacity-40 uppercase tracking-tighter">Size</span>
+                <button onClick={() => setFontSize(s => Math.min(32, s + 1))} className="w-6 h-6 flex items-center justify-center text-[10px] font-bold">+</button>
+             </div>
+             
+             <div className={`flex items-center rounded-lg overflow-hidden border ${isDark ? 'bg-zinc-800 border-white/5' : 'bg-white border-zinc-200'}`}>
+               <button onClick={() => { const val = transpose-1; setTranspose(val); onUpdateTranspose(song.id, val); }} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">-</button>
+               <div className={`min-w-[20px] px-1 flex items-center justify-center text-[8px] font-black tabular-nums ${transpose !== 0 ? (isDark ? 'text-blue-400' : 'text-blue-600') : (isDark ? 'text-zinc-600' : 'text-zinc-400')}`}>
+                 {transpose > 0 ? `+${transpose}` : transpose}
                </div>
+               <button onClick={() => { const val = transpose+1; setTranspose(val); onUpdateTranspose(song.id, val); }} className="w-7 h-6 flex items-center justify-center font-bold text-[9px] active:bg-zinc-700 active:text-white">+</button>
              </div>
           </div>
+          <h2 className={`text-[9px] font-black truncate max-w-[120px] opacity-40 uppercase tracking-widest text-center ${isDark ? 'text-white' : 'text-zinc-900'}`}>{song.title}</h2>
         </div>
         
         <button onClick={() => setIsChordPanelOpen(!isChordPanelOpen)} className={`font-black text-[9px] px-3 py-2 rounded-full uppercase tracking-wider active:scale-95 transition-all ${isDark ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'}`}>Chords</button>
@@ -172,6 +192,9 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
       <div 
         ref={containerRef}
         onClick={() => setPopover(null)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onWheel={handleTouchStart}
         className="flex-1 overflow-auto select-none scroll-smooth touch-pan-y"
       >
         <div className="inline-block w-full px-5 py-8 mono-grid" style={{ fontSize: `${fontSize}px` }}>
@@ -201,15 +224,7 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
             {(() => {
               const fingerings = getFingerings(popover.name);
               const fingering = fingerings[popover.variation % fingerings.length];
-              
-              if (!fingering) {
-                return (
-                  <div className={`px-4 py-3 rounded-2xl shadow-2xl border text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${isDark ? 'bg-zinc-900 border-red-500/30 text-red-500' : 'bg-white border-red-100 text-red-600'}`}>
-                    Shape not found: {popover.name}
-                  </div>
-                );
-              }
-
+              if (!fingering) return null;
               return (
                 <div className="relative">
                   <ChordDiagram fingering={fingering} theme={theme} />
@@ -221,22 +236,30 @@ export const PerformanceView: React.FC<PerformanceViewProps> = ({ song, onClose,
         </div>
       )}
 
-      <div className={`fixed bottom-0 left-0 right-0 border-t px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 flex flex-col gap-4 z-[130] ${isDark ? 'bg-zinc-900/95 backdrop-blur-3xl border-white/5' : 'bg-zinc-50/95 backdrop-blur-3xl border-zinc-200'}`}>
-        <div className="flex items-center gap-3">
-           <div className={`flex-1 flex p-1 rounded-xl border ${isDark ? 'bg-black/40 border-white/5' : 'bg-white border-zinc-200 shadow-sm'}`}>
-              {[0.5, 1, 2].map(speed => (
-                <button 
-                  key={speed}
-                  onClick={() => setScrollSpeed(speed)}
-                  className={`flex-1 py-1.5 text-[9px] font-black rounded-lg transition-all ${scrollSpeed === speed ? (isDark ? 'bg-zinc-700 text-white shadow-lg' : 'bg-zinc-100 text-zinc-900 shadow-sm') : 'text-zinc-500'}`}
-                >
-                  {speed === 0.5 ? 'SLOW' : speed === 1 ? 'MED' : 'FAST'}
-                </button>
-              ))}
+      <div className={`fixed bottom-0 left-0 right-0 border-t px-6 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 flex flex-col gap-5 z-[130] ${isDark ? 'bg-zinc-900/95 backdrop-blur-3xl border-white/5' : 'bg-zinc-50/95 backdrop-blur-3xl border-zinc-200'}`}>
+        <div className="flex items-center gap-6">
+           <div className="flex-1 flex flex-col gap-2">
+              <div className="flex justify-between items-center px-1">
+                <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Scroll Speed</span>
+                <span className="text-[8px] font-black text-blue-500 tabular-nums">{scrollSpeed.toFixed(1)}x</span>
+              </div>
+              <input 
+                type="range" 
+                min="0.1" 
+                max="5" 
+                step="0.1" 
+                value={scrollSpeed} 
+                onChange={(e) => {
+                  setScrollSpeed(parseFloat(e.target.value));
+                  if (containerRef.current) virtualScrollRef.current = containerRef.current.scrollTop;
+                }}
+                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
            </div>
+           
            <button 
             onClick={() => setIsScrolling(!isScrolling)} 
-            className={`flex-[1.5] py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isScrolling ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-blue-600 text-white active:scale-95 shadow-xl shadow-blue-600/20'}`}
+            className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${isScrolling ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-blue-600 text-white active:scale-95 shadow-xl shadow-blue-600/20'}`}
           >
             {isScrolling ? (
               <><span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span> Stop</>

@@ -1,5 +1,5 @@
 {
-  "name": "GuitarPro Songbook",
+  "name": "Guitar Songbook",
   "description": "songbook for guitarists",
   "requestFramePermissions": [
     "microphone"
