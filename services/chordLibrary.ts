@@ -23,82 +23,65 @@ const normalizeName = (name: string): string => {
 };
 
 export const chordLibrary: Record<string, ChordFingering[]> = {
-  // --- A ---
-  'A': [{ name: 'A', strings: ['x', 0, 2, 2, 2, 0], fingers: [null, null, 1, 2, 3, null], position: 1 }],
-  'Am': [{ name: 'Am', strings: ['x', 0, 2, 2, 1, 0], fingers: [null, null, 2, 3, 1, null], position: 1 }],
-  'A7': [{ name: 'A7', strings: ['x', 0, 2, 0, 2, 0], fingers: [null, null, 1, null, 2, null], position: 1 }],
-  'Am7': [{ name: 'Am7', strings: ['x', 0, 2, 0, 1, 0], fingers: [null, null, 2, null, 1, null], position: 1 }],
-  'Amaj7': [{ name: 'Amaj7', strings: ['x', 0, 2, 1, 2, 0], fingers: [null, null, 2, 1, 3, null], position: 1 }],
-  'Asus4': [{ name: 'Asus4', strings: ['x', 0, 2, 2, 3, 0], fingers: [null, null, 1, 2, 3, null], position: 1 }],
-  'A7sus4': [{ name: 'A7sus4', strings: ['x', 0, 2, 0, 3, 0], fingers: [null, null, 1, null, 3, null], position: 1 }],
-  'A9': [{ name: 'A9', strings: ['x', 0, 2, 4, 2, 3], fingers: [null, null, 1, 3, 1, 2], position: 1 }],
-  'Am6': [{ name: 'Am6', strings: ['x', 0, 2, 2, 1, 2], fingers: [null, null, 2, 3, 1, 4], position: 1 }],
-  'Ammaj7': [{ name: 'Ammaj7', strings: ['x', 0, 2, 1, 1, 0], fingers: [null, null, 2, 1, 1, null], position: 1 }],
-  'Adim': [{ name: 'Adim', strings: ['x', 'x', 1, 2, 1, 2], fingers: [null, null, 1, 3, 2, 4], position: 1 }],
-  'Adim7': [{ name: 'Adim7', strings: ['x', 'x', 4, 5, 4, 5], fingers: [null, null, 1, 3, 2, 4], position: 4 }],
-
-  // --- B ---
-  'B': [{ name: 'B', strings: ['x', 2, 4, 4, 4, 2], fingers: [null, 1, 2, 3, 4, 1], barre: { fret: 1, from: 2, to: 6 }, position: 2 }],
-  'Bm': [{ name: 'Bm', strings: ['x', 2, 4, 4, 3, 2], fingers: [null, 1, 3, 4, 2, 1], barre: { fret: 1, from: 2, to: 6 }, position: 2 }],
-  'B7': [{ name: 'B7', strings: ['x', 2, 1, 2, 0, 2], fingers: [null, 2, 1, 3, null, 4], position: 1 }],
-  'B9': [{ name: 'B9', strings: ['x', 2, 1, 2, 2, 2], fingers: [null, 2, 1, 3, 3, 3], barre: { fret: 2, from: 4, to: 6 }, position: 1 }],
-  'Bb': [{ name: 'Bb', strings: ['x', 1, 3, 3, 3, 1], fingers: [null, 1, 2, 3, 4, 1], barre: { fret: 1, from: 2, to: 6 }, position: 1 }],
-  'Bb7': [{ name: 'Bb7', strings: ['x', 1, 3, 1, 3, 1], fingers: [null, 1, 3, 1, 4, 1], barre: { fret: 1, from: 2, to: 6 }, position: 1 }],
-
-  // --- C ---
+  // --- C Group (Полная библиотека) ---
   'C': [{ name: 'C', strings: ['x', 3, 2, 0, 1, 0], fingers: [null, 3, 2, null, 1, null], position: 1 }],
-  'Cm': [{ name: 'Cm', strings: ['x', 3, 5, 5, 4, 3], fingers: [null, 1, 3, 4, 2, 1], barre: { fret: 1, from: 2, to: 6 }, position: 3 }],
-  'C7': [{ name: 'C7', strings: ['x', 3, 2, 3, 1, 0], fingers: [null, 3, 2, 4, 1, null], position: 1 }],
-  'C9': [{ name: 'C9', strings: ['x', 3, 2, 3, 3, 3], fingers: [null, 2, 1, 3, 3, 3], barre: { fret: 3, from: 4, to: 6 }, position: 1 }],
+  'C11': [{ name: 'C11', strings: ['x', 3, 2, 3, 1, 1], fingers: [null, 3, 2, 4, 1, 1], barre: { fret: 1, from: 5, to: 6 }, position: 1 }],
+  'C13': [{ name: 'C13', strings: ['x', 3, 5, 3, 5, 5], fingers: [null, 1, 2, 1, 3, 4], position: 3 }],
+  'C2': [{ name: 'C2', strings: ['x', 3, 0, 0, 3, 3], fingers: [null, 2, null, null, 3, 4], position: 1 }],
   'C5': [{ name: 'C5', strings: ['x', 3, 5, 5, 'x', 'x'], fingers: [null, 1, 3, 4, null, null], position: 3 }],
+  'C6': [{ name: 'C6', strings: ['x', 3, 2, 2, 1, 0], fingers: [null, 4, 2, 3, 1, null], position: 1 }],
+  'C7': [{ name: 'C7', strings: ['x', 3, 2, 3, 1, 0], fingers: [null, 3, 2, 4, 1, null], position: 1 }],
+  'C7sus2': [{ name: 'C7sus2', strings: ['x', 3, 0, 3, 3, 3], fingers: [null, 1, null, 2, 3, 4], position: 1 }],
+  'C7sus4': [{ name: 'C7sus4', strings: ['x', 3, 3, 3, 1, 'x'], fingers: [null, 2, 3, 4, 1, null], position: 1 }],
+  'C9': [{ name: 'C9', strings: ['x', 3, 2, 3, 3, 3], fingers: [null, 2, 1, 3, 4, 4], position: 1 }],
+  'Cadd9': [{ name: 'Cadd9', strings: ['x', 3, 2, 0, 3, 0], fingers: [null, 2, 1, null, 3, null], position: 1 }],
+  'Caug': [{ name: 'Caug', strings: ['x', 3, 2, 1, 1, 0], fingers: [null, 4, 3, 1, 2, null], position: 1 }],
+  'Caug7': [{ name: 'Caug7', strings: ['x', 3, 6, 3, 5, 'x'], fingers: [null, 1, 4, 1, 3, null], position: 3 }],
+  'Cdim': [{ name: 'Cdim', strings: ['x', 3, 4, 5, 4, 'x'], fingers: [null, 1, 2, 4, 3, null], position: 3 }],
+  'Cdim7': [{ name: 'Cdim7', strings: ['x', 3, 4, 2, 4, 'x'], fingers: [null, 2, 3, 1, 4, null], position: 2 }],
+  'Cm': [{ name: 'Cm', strings: ['x', 3, 5, 5, 4, 3], fingers: [null, 1, 3, 4, 2, 1], barre: { fret: 1, from: 2, to: 6 }, position: 3 }],
+  'Cm6': [{ name: 'Cm6', strings: ['x', 3, 1, 2, 1, 3], fingers: [null, 3, 1, 2, 1, 4], position: 1 }],
+  'Cm7': [{ name: 'Cm7', strings: ['x', 3, 5, 3, 4, 3], fingers: [null, 1, 3, 1, 2, 1], barre: { fret: 1, from: 2, to: 6 }, position: 3 }],
+  'Cm9': [{ name: 'Cm9', strings: ['x', 3, 1, 3, 3, 'x'], fingers: [null, 3, 1, 4, 4, null], position: 1 }],
+  'Cmadd9': [{ name: 'Cmadd9', strings: ['x', 3, 0, 0, 4, 3], fingers: [null, 1, null, null, 3, 2], position: 1 }],
+  'Cmaj7': [{ name: 'Cmaj7', strings: ['x', 3, 2, 0, 0, 0], fingers: [null, 3, 2, null, null, null], position: 1 }],
+  'Cmaj9': [{ name: 'Cmaj9', strings: ['x', 3, 0, 0, 0, 0], fingers: [null, 3, null, null, null, null], position: 1 }],
+  'Csus': [{ name: 'Csus', strings: ['x', 3, 3, 0, 1, 1], fingers: [null, 3, 4, null, 1, 1], position: 1 }],
+  'Csus2': [{ name: 'Csus2', strings: ['x', 3, 0, 0, 3, 3], fingers: [null, 1, null, null, 3, 4], position: 1 }],
+  'Csus4': [{ name: 'Csus4', strings: ['x', 3, 3, 0, 1, 1], fingers: [null, 3, 4, null, 1, 1], position: 1 }],
 
-  // --- D ---
-  'D': [{ name: 'D', strings: ['x', 'x', 0, 2, 3, 2], fingers: [null, null, null, 1, 3, 2], position: 1 }],
-  'Dm': [{ name: 'Dm', strings: ['x', 'x', 0, 2, 3, 1], fingers: [null, null, null, 2, 3, 1], position: 1 }],
-  'D7': [{ name: 'D7', strings: ['x', 'x', 0, 2, 1, 2], fingers: [null, null, null, 2, 1, 3], position: 1 }],
-  'D9': [{ name: 'D9', strings: ['x', 5, 4, 5, 5, 5], fingers: [null, 2, 1, 3, 3, 3], barre: { fret: 1, from: 4, to: 6 }, position: 5 }],
-  'Daug': [{ name: 'Daug', strings: ['x', 'x', 0, 3, 3, 2], fingers: [null, null, null, 2, 3, 1], position: 1 }],
-  'D5': [{ name: 'D5', strings: ['x', 5, 7, 7, 'x', 'x'], fingers: [null, 1, 3, 4, null, null], position: 5 }],
+  // --- C# Group (Очищено, оставлен только базовый) ---
+  'C#': [{ 
+    name: 'C#', strings: ['x', 4, 3, 1, 2, 1], fingers: [null, 4, 3, 1, 2, 1], 
+    barre: { fret: 1, from: 4, to: 6 }, position: 1 
+  }],
 
-  // --- E ---
-  'E': [{ name: 'E', strings: [0, 2, 2, 1, 0, 0], fingers: [null, 2, 3, 1, null, null], position: 1 }],
-  'Em': [{ name: 'Em', strings: [0, 2, 2, 0, 0, 0], fingers: [null, 2, 3, null, null, null], position: 1 }],
-  'E7': [{ name: 'E7', strings: [0, 2, 0, 1, 0, 0], fingers: [null, 2, null, 1, null, null], position: 1 }],
-  'E7#9': [{ name: 'E7#9', strings: [0, 7, 6, 7, 8, 'x'], fingers: [null, 2, 1, 3, 4, null], position: 6 }],
-  'E11': [{ name: 'E11', strings: [0, 0, 0, 1, 0, 0], fingers: [null, null, null, 1, null, null], position: 1 }],
-
-  // --- F ---
-  'F': [{ name: 'F', strings: [1, 3, 3, 2, 1, 1], fingers: [1, 3, 4, 2, 1, 1], barre: { fret: 1, from: 1, to: 6 }, position: 1 }],
-  'Fm': [{ name: 'Fm', strings: [1, 3, 3, 1, 1, 1], fingers: [1, 3, 4, 1, 1, 1], barre: { fret: 1, from: 1, to: 6 }, position: 1 }],
-  'Fmaj7': [{ name: 'Fmaj7', strings: ['x', 'x', 3, 2, 1, 0], fingers: [null, null, 3, 2, 1, null], position: 1 }],
-  'F9': [{ name: 'F9', strings: [1, 3, 1, 2, 1, 3], fingers: [1, 3, 1, 2, 1, 4], barre: { fret: 1, from: 1, to: 6 }, position: 1 }],
-
-  // --- G ---
+  // --- Other ---
   'G': [{ name: 'G', strings: [3, 2, 0, 0, 0, 3], fingers: [3, 2, null, null, null, 4], position: 1 }],
-  'Gm': [{ name: 'Gm', strings: [3, 5, 5, 3, 3, 3], fingers: [1, 3, 4, 1, 1, 1], barre: { fret: 1, from: 1, to: 6 }, position: 3 }],
-  'G7': [{ name: 'G7', strings: [3, 2, 0, 0, 0, 1], fingers: [3, 2, null, null, null, 1], position: 1 }],
-  'G6': [{ name: 'G6', strings: [3, 2, 0, 0, 0, 0], fingers: [3, 2, null, null, null, null], position: 1 }],
-  'Gsus4': [{ name: 'Gsus4', strings: [3, 'x', 0, 0, 1, 3], fingers: [2, null, null, null, 1, 3], position: 3 }],
+  'A': [{ name: 'A', strings: ['x', 0, 2, 2, 2, 0], fingers: [null, null, 1, 2, 3, null], position: 1 }],
+  'E': [{ name: 'E', strings: [0, 2, 2, 1, 0, 0], fingers: [null, 2, 3, 1, null, null], position: 1 }],
 };
 
 export const getFingerings = (chordName: string): ChordFingering[] => {
   if (!chordName) return [];
   const normalized = normalizeName(chordName);
-  
-  // Сначала ищем точное совпадение в библиотеке пресетов
-  if (chordLibrary[normalized]) return chordLibrary[normalized];
+  return chordLibrary[normalized] || [];
+};
 
-  const rootMatch = normalized.match(/^[A-G][#b]?/);
-  if (!rootMatch) return [];
-  const root = rootMatch[0];
-  const suffix = normalized.slice(root.length);
-
-  // Список поддерживаемых суффиксов для автоматического маппинга
-  const supported = ['m', '7', 'maj7', 'm7', 'sus2', 'sus4', '7sus4', 'add9', '6', 'add11', '6sus2', '9', '6', 'maj7', '5', 'aug', 'dim', 'dim7'];
-  for (const s of supported) {
-    if (suffix === s && chordLibrary[root + s]) return chordLibrary[root + s];
-  }
+export const getAllVariationsForRoot = (root: string): ChordFingering[] => {
+  const variations: ChordFingering[] = [];
+  const suffixes = [
+    '', '11', '13', '2', '5', '6', '7', '7sus2', '7sus4', '9', 'add9', 
+    'aug', 'aug7', 'dim', 'dim7', 'm', 'm6', 'm7', 'm9', 'madd9', 
+    'maj7', 'maj9', 'sus', 'sus2', 'sus4'
+  ];
   
-  if (chordLibrary[root]) return chordLibrary[root];
-  return [];
+  suffixes.forEach(s => {
+    const fings = getFingerings(root + s);
+    if (fings.length > 0) {
+      variations.push(...fings);
+    }
+  });
+  
+  return variations;
 };

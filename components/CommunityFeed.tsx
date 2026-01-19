@@ -10,21 +10,6 @@ interface CommunityFeedProps {
   theme?: 'light' | 'dark';
 }
 
-const AcousticGuitarIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 64 64" fill="none">
-    <path 
-      d="M32 58c-8.5 0-15.5-6.5-15.5-14.5 0-5 3.5-8.5 5.5-11 0-2.5-1-5.5-1-9 0-6 4.5-11 11-11s11 5 11 11c0 3.5-1 6.5-1 9 2 2.5 5.5 6 5.5 11 0 8-7 14.5-15.5 14.5z" 
-      fill="currentColor" 
-      fillOpacity="0.2"
-      stroke="currentColor" 
-      strokeWidth="2.5" 
-      strokeLinejoin="round" 
-    />
-    <circle cx="32" cy="42" r="3.5" fill="currentColor" />
-    <rect x="30" y="6" width="4" height="15" rx="1" fill="currentColor" />
-  </svg>
-);
-
 export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, onDelete, theme = 'dark' }) => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,112 +91,109 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onImport, onView, 
   }, [songs, search, viewMode]);
 
   return (
-    <div className={`flex flex-col h-full pt-[env(safe-area-inset-top)] ${isDark ? 'bg-[#121212]' : 'bg-[#f8f9fa]'}`}>
-      <div className={`px-6 py-6 flex justify-between items-end border-b backdrop-blur-xl ${isDark ? 'border-white/5 bg-zinc-900/50' : 'border-zinc-200 bg-white/80'}`}>
-        <div className="flex items-center gap-4">
-          <div className="relative w-16 h-12 flex items-center justify-center">
-             <AcousticGuitarIcon className={`absolute w-10 h-10 transition-colors -translate-x-4 rotate-[-25deg] ${isDark ? 'text-blue-500 opacity-30' : 'text-blue-400 opacity-40'}`} />
-             <AcousticGuitarIcon className={`absolute w-10 h-10 transition-colors translate-x-4 rotate-[25deg] ${isDark ? 'text-blue-500 opacity-30' : 'text-blue-400 opacity-40'}`} />
-             <AcousticGuitarIcon className={`absolute w-11 h-11 transition-colors z-10 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-          </div>
-          <div>
-            <h1 className={`text-4xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-zinc-900'}`}>Common</h1>
-            <p className={`text-xs font-black uppercase tracking-[0.2em] mt-1 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Global Archive</p>
-          </div>
+    <div className={`flex flex-col h-full pt-[env(safe-area-inset-top)] ${isDark ? 'bg-black text-white' : 'bg-zinc-50 text-zinc-900'}`}>
+      {/* Header */}
+      <div className="px-6 py-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-5xl font-black tracking-tighter leading-none">Board</h1>
+          <p className={`text-[10px] font-black uppercase tracking-[0.4em] mt-2 opacity-40`}>Community Archive</p>
         </div>
         <button 
           onClick={handleRefresh}
-          className={`p-3 rounded-full active:scale-90 transition-all border ${refreshing ? 'animate-spin text-blue-500' : ''} ${isDark ? 'bg-zinc-800 text-zinc-400 border-white/5' : 'bg-white text-zinc-400 border-zinc-200 shadow-sm'}`}
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-90 border ${isDark ? 'bg-zinc-900 border-white/5 text-zinc-400' : 'bg-white border-zinc-200 text-zinc-400 shadow-sm'}`}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
       </div>
 
-      <div className="px-6 py-4 space-y-4 shrink-0">
-        <div className={`flex p-1 rounded-2xl border shadow-inner ${isDark ? 'bg-[#1c1c1e] border-white/5' : 'bg-zinc-200/50 border-zinc-200'}`}>
-            <button 
-              onClick={() => setViewMode(ViewMode.SONGS)} 
-              className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${viewMode === ViewMode.SONGS ? (isDark ? 'bg-zinc-700 text-white shadow-lg' : 'bg-white text-zinc-900 shadow-sm') : (isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-700')}`}
-            >SONGS</button>
-            <button 
-              onClick={() => setViewMode(ViewMode.ARTISTS)} 
-              className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${viewMode === ViewMode.ARTISTS ? (isDark ? 'bg-zinc-700 text-white shadow-lg' : 'bg-white text-zinc-900 shadow-sm') : (isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-700')}`}
-            >ARTISTS</button>
-        </div>
-
+      {/* Controls */}
+      <div className="px-6 mb-6 space-y-4">
         <div className="relative">
           <input 
             type="text" 
-            placeholder="Search global board..." 
-            className={`w-full border rounded-2xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${isDark ? 'bg-[#1c1c1e] border-white/5 text-white placeholder:text-zinc-700' : 'bg-white border-zinc-200 text-zinc-900 placeholder:text-zinc-400'}`}
+            placeholder="Search the archive..." 
+            className={`w-full rounded-3xl py-5 pl-14 pr-6 outline-none transition-all font-bold ${isDark ? 'bg-zinc-900 text-white placeholder:text-zinc-700 focus:bg-zinc-800' : 'bg-white text-zinc-900 placeholder:text-zinc-300 shadow-sm border border-zinc-100'}`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <svg className={`w-5 h-5 absolute left-4 top-4 ${isDark ? 'text-zinc-700' : 'text-zinc-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={`w-6 h-6 absolute left-5 top-5 ${isDark ? 'text-zinc-700' : 'text-zinc-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
+
+        <div className={`flex p-1 rounded-2xl ${isDark ? 'bg-zinc-900' : 'bg-zinc-200/50'}`}>
+            <button 
+              onClick={() => setViewMode(ViewMode.SONGS)} 
+              className={`flex-1 py-2 text-[9px] font-black rounded-xl transition-all ${viewMode === ViewMode.SONGS ? (isDark ? 'bg-zinc-700 text-white shadow-xl' : 'bg-white text-zinc-900 shadow-sm') : 'text-zinc-500'}`}
+            >BY SONG</button>
+            <button 
+              onClick={() => setViewMode(ViewMode.ARTISTS)} 
+              className={`flex-1 py-2 text-[9px] font-black rounded-xl transition-all ${viewMode === ViewMode.ARTISTS ? (isDark ? 'bg-zinc-700 text-white shadow-xl' : 'bg-white text-zinc-900 shadow-sm') : 'text-zinc-500'}`}
+            >BY ARTIST</button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-32">
+      {/* List */}
+      <div className="flex-1 overflow-y-auto px-4 pb-32 no-scrollbar">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className={`font-black text-xs uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>Fetching Board...</p>
+          <div className="flex flex-col items-center justify-center py-24 opacity-20">
+            <div className="w-8 h-8 border-4 border-current border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-[10px] font-black uppercase tracking-widest">Accessing Database</p>
           </div>
         ) : error ? (
           <div className="text-center py-20 px-10">
-            <p className="text-red-400 font-bold mb-4">{error}</p>
-            <button onClick={loadForum} className="text-blue-500 font-black uppercase text-xs tracking-widest">Retry Connection</button>
+            <p className="text-red-500 font-bold mb-4">{error}</p>
+            <button onClick={loadForum} className="text-blue-500 font-black uppercase text-[10px] tracking-widest underline">Retry</button>
           </div>
         ) : processedData.length === 0 ? (
-          <div className="text-center py-20 px-10">
-            <p className={`font-bold italic mb-2 ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>No results found.</p>
-            <p className={`text-xs uppercase tracking-widest ${isDark ? 'text-zinc-700' : 'text-zinc-300'}`}>Try a different search</p>
+          <div className="text-center py-32 opacity-20">
+            <p className="font-black text-xl tracking-tight">Nothing found</p>
           </div>
         ) : (
           processedData.map((group) => (
-            <div key={group.label} className="mb-6">
-                <div className={`sticky top-0 backdrop-blur-xl px-5 py-2 border-b z-10 flex justify-between items-center ${isDark ? 'bg-[#121212]/90 border-white/5' : 'bg-[#f8f9fa]/90 border-zinc-200'}`}>
-                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">{group.label}</span>
+            <div key={group.label} className="mb-8">
+                <div className="px-4 mb-4 flex items-center gap-4">
+                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em]">{group.label}</span>
+                    <div className={`h-[1px] flex-1 ${isDark ? 'bg-zinc-900' : 'bg-zinc-200'}`}></div>
                 </div>
-                <div className="px-3 space-y-2 mt-2">
+                <div className="space-y-3">
                     {group.songs.map((song) => (
                         <div 
-                        key={song.id} 
-                        onClick={() => onView(song)} 
-                        className={`border rounded-2xl p-4 shadow-sm active:scale-[0.98] transition-all relative overflow-hidden ${isDark ? 'bg-[#1c1c1e] border-white/5' : 'bg-white border-zinc-100 shadow-zinc-200/50'}`}
+                          key={song.id} 
+                          onClick={() => onView(song)} 
+                          className={`group relative rounded-[2rem] p-6 transition-all active:scale-[0.97] overflow-hidden border ${isDark ? 'bg-zinc-900/40 border-white/5 hover:bg-zinc-900/60' : 'bg-white border-zinc-100 shadow-sm hover:shadow-md'}`}
                         >
-                        <div className="flex justify-between items-center">
-                            <div className="flex-1 pr-4 truncate">
-                              <h3 className={`text-[17px] font-bold leading-tight truncate ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{song.title}</h3>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <p className="text-blue-500 font-black text-[9px] uppercase tracking-widest truncate">{song.artist}</p>
-                                <span className="text-[8px] text-zinc-600 font-bold opacity-50">• {song.authorName}</span>
+                          <div className="flex justify-between items-start gap-4">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-2xl font-black tracking-tight truncate leading-none mb-2">{song.title}</h3>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-blue-500 font-black text-[10px] uppercase tracking-widest truncate">{song.artist}</span>
+                                  <div className={`w-1 h-1 rounded-full ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`}></div>
+                                  <span className={`text-[10px] font-bold truncate opacity-40`}>by {song.authorName}</span>
+                                </div>
                               </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
+                              
+                              <div className="flex items-center gap-2 shrink-0">
                                 {currentUser && song.authorId === currentUser.id && (
                                   <button 
                                     onClick={(e) => handleDeleteClick(e, song.id)}
-                                    className={`shrink-0 p-2.5 rounded-xl transition-all border ${confirmDeleteId === song.id ? 'bg-red-600 border-red-500 text-white' : (isDark ? 'bg-zinc-800 border-white/5 text-red-500/70 hover:text-red-500' : 'bg-red-50 border-red-100 text-red-400 hover:text-red-500')}`}
+                                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all border ${confirmDeleteId === song.id ? 'bg-red-600 border-red-500 text-white' : (isDark ? 'bg-zinc-800 border-white/5 text-red-500' : 'bg-red-50 border-red-100 text-red-500')}`}
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
                                   </button>
                                 )}
                                 <button 
-                                onClick={(e) => { e.stopPropagation(); onImport(song); }}
-                                className={`shrink-0 px-4 py-2 rounded-xl font-black text-[8px] uppercase tracking-widest active:scale-90 transition-all border ${isDark ? 'bg-zinc-800 hover:bg-zinc-700 text-white border-white/5' : 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'}`}
+                                  onClick={(e) => { e.stopPropagation(); onImport(song); }}
+                                  className={`h-12 px-6 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl active:scale-90 ${isDark ? 'bg-white text-black shadow-white/5' : 'bg-blue-600 text-white shadow-blue-500/20'}`}
                                 >
-                                Add
+                                  Add
                                 </button>
-                            </div>
-                        </div>
+                              </div>
+                          </div>
                         </div>
                     ))}
                 </div>

@@ -259,7 +259,11 @@ const App: React.FC = () => {
             { id: AppState.FORUM, label: 'Board', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9' },
             { id: AppState.TUNER, label: 'Tuner', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' }
           ].map(tab => (
-            <button key={tab.id} onClick={() => setState(tab.id)} className={`flex flex-col items-center gap-1 flex-1 ${state === tab.id ? 'text-blue-500' : 'text-zinc-500'}`}>
+            <button 
+              key={tab.id} 
+              onClick={() => setState(tab.id as AppState)} 
+              className={`flex flex-col items-center gap-1 flex-1 ${state === tab.id ? 'text-blue-500' : 'text-zinc-500'}`}
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d={tab.icon} /></svg>
               <span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>
             </button>

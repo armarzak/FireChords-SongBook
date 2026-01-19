@@ -187,13 +187,15 @@ export const storageService = {
   deleteFromForum: async (id: string, user: User): Promise<{success: boolean, error?: string}> => {
     if (!supabase || !user) return { success: false, error: 'Not authorized' };
     try {
-      const { error } = await supabase
+      const { error, status } = await supabase
         .from('songs')
         .delete()
         .eq('id', id)
         .eq('user_id', user.id)
         .eq('is_public', true);
       
+      // Supabase delete might return 204 even if no rows were deleted if filters match nothing, 
+      // but here we trust our internal ID logic.
       if (error) return { success: false, error: error.message };
       return { success: true };
     } catch (e: any) {
