@@ -58,26 +58,17 @@ const App: React.FC = () => {
 
       if (storageService.isCloudEnabled()) {
         const cloudSongs = await storageService.restoreLibraryFromCloud(u);
-        
         if (cloudSongs !== null) {
           setIsOnline(true);
-          
           const mergedMap = new Map<string, Song>();
           localSongs.forEach(s => mergedMap.set(s.id, s));
           cloudSongs.forEach(s => mergedMap.set(s.id, s));
-          
           const finalSongs = Array.from(mergedMap.values());
           setSongs(finalSongs);
-          
           await storageService.saveSongsBulk(finalSongs);
-          
-          if (localSongs.length !== cloudSongs.length) {
-            await storageService.syncLibraryWithCloud(finalSongs, u);
-          }
         }
       }
     } catch (e) {
-      console.error("[App] Init error:", e);
       setIsOnline(false);
       setIsAppReady(true);
     } finally {
@@ -104,12 +95,9 @@ const App: React.FC = () => {
       if (result.success) {
         showToast("Removed from Board");
         return true;
-      } else {
-        showToast("Delete failed");
-        return false;
       }
+      return false;
     } catch (e) {
-      showToast("Network Error");
       return false;
     }
   };
@@ -145,29 +133,17 @@ const App: React.FC = () => {
             theme={theme} 
             onToggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')} 
             onSelect={s => { setCurrentSongId(s.id); setSharedSong(null); setState(AppState.PERFORMANCE); }} 
-            onAdd={() => { 
-              setCurrentSongId(null); 
-              setSharedSong(null); 
-              setState(AppState.EDIT); 
-            }} 
+            onAdd={() => { setCurrentSongId(null); setSharedSong(null); setState(AppState.EDIT); }} 
             onExportSuccess={showToast} 
           />
         )}
-        {state === AppState.EXPLORER && <ChordExplorer theme={theme} />}
         {state === AppState.FORUM && (
           <CommunityFeed 
             onImport={async s => { 
-              const importedSong: Song = {
-                ...s,
-                id: 's-imp-' + Date.now(),
-                is_public: false,
-                authorId: user?.id,
-                authorName: s.authorName + ' (Cover)'
-              };
+              const importedSong: Song = { ...s, id: 's-imp-' + Date.now(), is_public: false };
               const updated = [importedSong, ...songs];
               setSongs(updated);
               await storageService.saveSongLocal(importedSong);
-              if (user) storageService.syncLibraryWithCloud(updated, user);
               showToast("Added to Songs"); 
             }} 
             onView={s => { setSharedSong(s); setCurrentSongId(null); setState(AppState.PERFORMANCE); }} 
@@ -175,6 +151,7 @@ const App: React.FC = () => {
             theme={theme} 
           />
         )}
+        {state === AppState.EXPLORER && <ChordExplorer theme={theme} />}
         {state === AppState.TUNER && <Tuner theme={theme} />}
         
         {state === AppState.EDIT && (
@@ -183,55 +160,25 @@ const App: React.FC = () => {
             existingArtists={existingArtists} 
             onSave={async d => {
               const id = currentSongId || 's-'+Date.now();
-              const newSong: Song = {
-                id,
-                title: d.title || 'Untitled',
-                artist: d.artist || 'Various',
-                content: d.content || '',
-                transpose: currentSong?.transpose || 0,
-                authorName: user?.stageName || 'Me',
-                authorId: user?.id,
-                is_public: false 
-              };
-              
-              const updatedSongsList = currentSongId 
-                ? songs.map(s => s.id === id ? newSong : s)
-                : [newSong, ...songs];
-
-              setSongs(updatedSongsList);
+              const newSong: Song = { ...d, id, transpose: currentSong?.transpose || 0, is_public: false } as Song;
+              const updated = currentSongId ? songs.map(s => s.id === id ? newSong : s) : [newSong, ...songs];
+              setSongs(updated);
               await storageService.saveSongLocal(newSong);
-              
-              if (user) {
-                storageService.syncLibraryWithCloud(updatedSongsList, user).then(res => {
-                  if (res.success) setIsOnline(true);
-                });
-              }
-
-              setCurrentSongId(null);
-              setSharedSong(null);
               setState(AppState.LIST);
-              showToast("Song Saved");
             }} 
             onDelete={async id => {
               await storageService.deleteSongLocal(id);
               setSongs(songs.filter(s => s.id !== id));
-              setCurrentSongId(null);
-              setSharedSong(null);
               setState(AppState.LIST);
-              showToast("Removed");
             }}
-            onCancel={() => {
-              setCurrentSongId(null);
-              setSharedSong(null);
-              setState(AppState.LIST);
-            }} 
+            onCancel={() => setState(AppState.LIST)} 
             onNotify={showToast} 
             theme={theme} 
           />
         )}
 
         {state === AppState.PERFORMANCE && currentSong && (
-          <PerformanceView song={currentSong} theme={theme} onClose={() => { setSharedSong(null); setCurrentSongId(null); setState(AppState.LIST); }} onEdit={() => setState(AppState.EDIT)} onUpdateTranspose={(id, val) => {
+          <PerformanceView song={currentSong} theme={theme} onClose={() => setState(AppState.LIST)} onEdit={() => setState(AppState.EDIT)} onUpdateTranspose={(id, val) => {
              const updated = songs.map(s => s.id === id ? {...s, transpose: val} : s);
              setSongs(updated);
              const s = updated.find(x => x.id === id);
@@ -256,11 +203,7 @@ const App: React.FC = () => {
             { id: AppState.EXPLORER, label: 'Chords', icon: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' },
             { id: AppState.TUNER, label: 'Tuner', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' }
           ].map(tab => (
-            <button 
-              key={tab.id} 
-              onClick={() => setState(tab.id as AppState)} 
-              className={`flex flex-col items-center gap-1 flex-1 ${state === tab.id ? 'text-blue-500' : 'text-zinc-500'}`}
-            >
+            <button key={tab.id} onClick={() => setState(tab.id as AppState)} className={`flex flex-col items-center gap-1 flex-1 ${state === tab.id ? 'text-blue-500' : 'text-zinc-500'}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d={tab.icon} /></svg>
               <span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>
             </button>
@@ -270,5 +213,4 @@ const App: React.FC = () => {
     </div>
   );
 };
-
 export default App;

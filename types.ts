@@ -23,11 +23,10 @@ export enum AppState {
   LIST = 'LIST',
   EDIT = 'EDIT',
   PERFORMANCE = 'PERFORMANCE',
-  DICTIONARY = 'DICTIONARY',
   TUNER = 'TUNER',
   FORUM = 'FORUM',
   AUTH = 'AUTH',
-  EXPLORER = 'EXPLORER' // Новая вкладка для интерактивного грифа
+  EXPLORER = 'EXPLORER'
 }
 
 export enum ViewMode {
