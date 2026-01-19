@@ -5,7 +5,6 @@ import { storageService } from './services/storageService';
 import { SongList } from './components/SongList';
 import { SongEditor } from './components/SongEditor';
 import { PerformanceView } from './components/PerformanceView';
-import { ChordDictionary } from './components/ChordDictionary';
 import { Tuner } from './components/Tuner';
 import { CommunityFeed } from './components/CommunityFeed';
 import { LoginScreen } from './components/LoginScreen';
@@ -155,7 +154,6 @@ const App: React.FC = () => {
           />
         )}
         {state === AppState.EXPLORER && <ChordExplorer theme={theme} />}
-        {state === AppState.DICTIONARY && <ChordDictionary theme={theme} />}
         {state === AppState.FORUM && (
           <CommunityFeed 
             onImport={async s => { 
@@ -254,9 +252,8 @@ const App: React.FC = () => {
         <div className={`h-[calc(68px+env(safe-area-inset-bottom))] ${navBgClass} backdrop-blur-2xl border-t flex items-center justify-around pb-[env(safe-area-inset-bottom)] z-[100]`}>
           {[
             { id: AppState.LIST, label: 'Songs', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-            { id: AppState.EXPLORER, label: 'Fret', icon: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' },
-            { id: AppState.DICTIONARY, label: 'Circle', icon: 'M12 21a9 9 0 100-18 9 9 0 000 18z M12 12m-3 0a3 3 0 106 0 3 3 0 10-6 0' },
             { id: AppState.FORUM, label: 'Board', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9' },
+            { id: AppState.EXPLORER, label: 'Chords', icon: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' },
             { id: AppState.TUNER, label: 'Tuner', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' }
           ].map(tab => (
             <button 
